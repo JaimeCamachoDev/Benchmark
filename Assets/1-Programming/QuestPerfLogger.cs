@@ -35,7 +35,6 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display != null && Time.time >= _nextLogTime)
         {
             _nextLogTime = Time.time + logInterval;
-
             XRStats.TryGetCPUTimeLastFrame(_display, out float cpuMs);
             XRStats.TryGetGPUTimeLastFrame(_display, out float gpuMs);
             float batt = SystemInfo.batteryLevel;
