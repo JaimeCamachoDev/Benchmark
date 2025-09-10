@@ -27,7 +27,7 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display == null)
         {
             var displays = new List<XRDisplaySubsystem>();
-            SubsystemManager.GetInstances(displays);
+            SubsystemManager.GetSubsystems(displays);
             if (displays.Count > 0)
                 _display = displays[0];
         }
