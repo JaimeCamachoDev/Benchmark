@@ -1,6 +1,10 @@
 {
   "dependencies": {
-    "com.unity.render-pipelines.universal": "17.0.4"
+    "com.unity.ide.visualstudio": "2.0.23",
+    "com.unity.render-pipelines.universal": "17.0.4",
+    "com.unity.visualeffectgraph": "17.0.4",
+    "com.unity.xr.management": "4.5.1",
+    "com.unity.xr.meta-openxr": "2.2.0"
   },
   "scopedRegistries": [
     {
@@ -19,4 +23,3 @@
     }
   ]
 }
-
