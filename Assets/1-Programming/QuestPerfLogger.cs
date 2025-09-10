@@ -27,7 +27,7 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display == null)
         {
             var displays = new List<XRDisplaySubsystem>();
-            SubsystemManager.GetSubsystems(displays);
+            SubsystemManager.GetInstances(displays);
             if (displays.Count > 0)
                 _display = displays[0];
         }
@@ -35,8 +35,9 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display != null && Time.time >= _nextLogTime)
         {
             _nextLogTime = Time.time + logInterval;
-            XRStats.TryGetCPUTimeLastFrame(_display, out float cpuMs);
-            XRStats.TryGetGPUTimeLastFrame(_display, out float gpuMs);
+
+            _display.TryGetAppCPUTimeLastFrame(out float cpuMs);
+            _display.TryGetAppGPUTimeLastFrame(out float gpuMs);
             float batt = SystemInfo.batteryLevel;
 
             File.AppendAllText(_filePath, string.Format("{0:F2},{1:F3},{2:F3},{3:F2}\n", Time.time, cpuMs, gpuMs, batt));
