@@ -3,6 +3,8 @@ using System.IO;
 using UnityEngine;
 using UnityEngine.XR;
 
+using XRStats = UnityEngine.XR.Provider.XRStats;
+
 // Registro simple de métricas para Quest y otros visores XR.
 // Guarda CPU/GPU time y nivel de batería en CSV y muestra valores en pantalla.
 public class QuestPerfLogger : MonoBehaviour
@@ -27,7 +29,7 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display == null)
         {
             var displays = new List<XRDisplaySubsystem>();
-            SubsystemManager.GetSubsystems(displays);
+            SubsystemManager.GetInstances(displays);
             if (displays.Count > 0)
                 _display = displays[0];
         }
@@ -35,9 +37,8 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display != null && Time.time >= _nextLogTime)
         {
             _nextLogTime = Time.time + logInterval;
-
-            _display.TryGetAppCPUTimeLastFrame(out float cpuMs);
-            _display.TryGetAppGPUTimeLastFrame(out float gpuMs);
+            XRStats.TryGetStat(_display, "appCPUTimeLastFrame", out float cpuMs);
+            XRStats.TryGetStat(_display, "appGPUTimeLastFrame", out float gpuMs);
             float batt = SystemInfo.batteryLevel;
 
             File.AppendAllText(_filePath, string.Format("{0:F2},{1:F3},{2:F3},{3:F2}\n", Time.time, cpuMs, gpuMs, batt));
