@@ -1,4 +1,3 @@
-
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -36,10 +35,8 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display != null && Time.time >= _nextLogTime)
         {
             _nextLogTime = Time.time + logInterval;
-
-            XRStats.TryGetStat(_display, "cpuTimeLastFrame", out float cpuMs);
-            XRStats.TryGetStat(_display, "gpuTimeLastFrame", out float gpuMs);
-
+            XRStats.TryGetCPUTimeLastFrame(_display, out float cpuMs);
+            XRStats.TryGetGPUTimeLastFrame(_display, out float gpuMs);
             float batt = SystemInfo.batteryLevel;
 
             File.AppendAllText(_filePath, string.Format("{0:F2},{1:F3},{2:F3},{3:F2}\n", Time.time, cpuMs, gpuMs, batt));
