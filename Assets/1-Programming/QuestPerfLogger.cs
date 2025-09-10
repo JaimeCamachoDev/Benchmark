@@ -1,3 +1,4 @@
+
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -38,6 +39,7 @@ public class QuestPerfLogger : MonoBehaviour
 
             XRStats.TryGetStat(_display, "cpuTimeLastFrame", out float cpuMs);
             XRStats.TryGetStat(_display, "gpuTimeLastFrame", out float gpuMs);
+
             float batt = SystemInfo.batteryLevel;
 
             File.AppendAllText(_filePath, string.Format("{0:F2},{1:F3},{2:F3},{3:F2}\n", Time.time, cpuMs, gpuMs, batt));
