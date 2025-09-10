@@ -1,3 +1,5 @@
+
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.XR;
@@ -12,22 +14,32 @@ public class QuestPerfLogger : MonoBehaviour
     string _filePath;
     float _nextLogTime;
     float _lastCpu, _lastGpu, _lastBatt;
+    XRDisplaySubsystem _display;
 
     void Start()
     {
         _filePath = Path.Combine(Application.persistentDataPath, "QuestPerf.csv");
-        File.WriteAllText(_filePath, "Time,AppCPU_ms,AppGPU_ms,Battery\n");
+        File.WriteAllText(_filePath, "Time,CPU_ms,GPU_ms,Battery\n");
         _nextLogTime = Time.time + logInterval;
     }
 
     void Update()
     {
-        if (Time.time >= _nextLogTime)
+        if (_display == null)
+        {
+            var displays = new List<XRDisplaySubsystem>();
+            SubsystemManager.GetInstances(displays);
+            if (displays.Count > 0)
+                _display = displays[0];
+        }
+
+        if (_display != null && Time.time >= _nextLogTime)
         {
             _nextLogTime = Time.time + logInterval;
 
-            XRStats.TryGetAppCPUTimeLastFrame(out float cpuMs);
-            XRStats.TryGetAppGPUTimeLastFrame(out float gpuMs);
+            XRStats.TryGetStat(_display, "cpuTimeLastFrame", out float cpuMs);
+            XRStats.TryGetStat(_display, "gpuTimeLastFrame", out float gpuMs);
+
             float batt = SystemInfo.batteryLevel;
 
             File.AppendAllText(_filePath, string.Format("{0:F2},{1:F3},{2:F3},{3:F2}\n", Time.time, cpuMs, gpuMs, batt));
