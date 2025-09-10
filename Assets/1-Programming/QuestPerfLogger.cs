@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.XR;
+
 using XRStats = UnityEngine.XR.Provider.XRStats;
 
 // Registro simple de métricas para Quest y otros visores XR.
@@ -36,7 +37,6 @@ public class QuestPerfLogger : MonoBehaviour
         if (_display != null && Time.time >= _nextLogTime)
         {
             _nextLogTime = Time.time + logInterval;
-
             XRStats.TryGetStat(_display, "appCPUTimeLastFrame", out float cpuMs);
             XRStats.TryGetStat(_display, "appGPUTimeLastFrame", out float gpuMs);
             float batt = SystemInfo.batteryLevel;
