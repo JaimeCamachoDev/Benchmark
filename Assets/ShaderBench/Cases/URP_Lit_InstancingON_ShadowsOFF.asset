@@ -17,7 +17,7 @@ MonoBehaviour:
   gridX: 50
   gridY: 50
   spacing: 1
-  overrideMaterial: 0
+  overrideMaterial: 1
   material: {fileID: 2100000, guid: 232b113539c6926408623efb0cb31760, type: 2}
   enableGPUInstancing: 1
   shadowCasting: 0
