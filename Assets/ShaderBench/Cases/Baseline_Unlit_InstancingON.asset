@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77cace524a945e54c90a00f48f3176db, type: 3}
+  m_Name: Baseline_Unlit_InstancingON
+  m_EditorClassIdentifier: 
+  caseName: Baseline Unlit (Instancing ON, No Shadows)
+  prefab: {fileID: 5040209654722044607, guid: 568701b2c46748e4b9bef8f26f23df78, type: 3}
+  gridX: 40
+  gridY: 40
+  spacing: 1
+  overrideMaterial: 0
+  material: {fileID: 2100000, guid: 30fe1da1c422a32458fa94b3259b4653, type: 2}
+  enableGPUInstancing: 1
+  shadowCasting: 0
+  receiveShadows: 0
+  enabledKeywords: 
+  disabledKeywords: 
