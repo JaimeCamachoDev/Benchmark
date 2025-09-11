@@ -70,7 +70,7 @@ public class BenchmarkRunner : MonoBehaviour
     public string customRunLabel = "";
 
     [Tooltip("FPS objetivo para análisis en Sheets (finalize)")]
-    public int targetFPS = 60;
+    public int targetFPS = 72;
 
     // Internos
     private string _currentSheetName;
@@ -121,6 +121,9 @@ public class BenchmarkRunner : MonoBehaviour
         public double FPS_avg, FPS_p95, FPS_min, FPS_max;
 
         public string UnityVersion, RenderPipeline, GraphicsAPI, DeviceModel, OS;
+        public string Bottleneck;
+        public string Quest3Rating;
+        public string Summary;
     }
 
     [Serializable]
@@ -288,7 +291,8 @@ public class BenchmarkRunner : MonoBehaviour
                 "CPU_ms_avg", "CPU_ms_p95", "CPU_ms_min", "CPU_ms_max",
                 "GPU_ms_avg", "GPU_ms_p95", "GPU_ms_min", "GPU_ms_max",
                 "FPS_avg", "FPS_p95", "FPS_min", "FPS_max",
-                "UnityVersion", "RenderPipeline", "GraphicsAPI", "DeviceModel", "OS"));
+                "UnityVersion", "RenderPipeline", "GraphicsAPI", "DeviceModel", "OS",
+                "Bottleneck", "Quest3Rating", "Summary"));
         }
         catch (Exception e)
         {
@@ -300,6 +304,7 @@ public class BenchmarkRunner : MonoBehaviour
     {
         try
         {
+            AnalyzeStats(s, out string bottleneck, out string rating, out string summary);
             using var w = new StreamWriter(path, true);
             string rp = DetectRenderPipeline();
             string gapi = SystemInfo.graphicsDeviceType.ToString();
@@ -315,26 +320,29 @@ public class BenchmarkRunner : MonoBehaviour
                 Escape(c.enabledKeywords),
                 Escape(c.disabledKeywords),
 
-                s.cpuAvg.ToString("F4", CultureInfo.InvariantCulture),
-                s.cpuP95.ToString("F4", CultureInfo.InvariantCulture),
-                s.cpuMin.ToString("F4", CultureInfo.InvariantCulture),
-                s.cpuMax.ToString("F4", CultureInfo.InvariantCulture),
+                Math.Round(s.cpuAvg, 2).ToString("F2", CultureInfo.InvariantCulture),
+                Math.Round(s.cpuP95, 2).ToString("F2", CultureInfo.InvariantCulture),
+                Math.Round(s.cpuMin, 2).ToString("F2", CultureInfo.InvariantCulture),
+                Math.Round(s.cpuMax, 2).ToString("F2", CultureInfo.InvariantCulture),
 
-                s.gpuAvg.ToString("F4", CultureInfo.InvariantCulture),
-                s.gpuP95.ToString("F4", CultureInfo.InvariantCulture),
-                s.gpuMin.ToString("F4", CultureInfo.InvariantCulture),
-                s.gpuMax.ToString("F4", CultureInfo.InvariantCulture),
+                Math.Round(s.gpuAvg, 2).ToString("F2", CultureInfo.InvariantCulture),
+                Math.Round(s.gpuP95, 2).ToString("F2", CultureInfo.InvariantCulture),
+                Math.Round(s.gpuMin, 2).ToString("F2", CultureInfo.InvariantCulture),
+                Math.Round(s.gpuMax, 2).ToString("F2", CultureInfo.InvariantCulture),
 
-                s.fpsAvg.ToString("F2", CultureInfo.InvariantCulture),
-                s.fpsP95.ToString("F2", CultureInfo.InvariantCulture),
-                s.fpsMin.ToString("F2", CultureInfo.InvariantCulture),
-                s.fpsMax.ToString("F2", CultureInfo.InvariantCulture),
+                Math.Round(s.fpsAvg, 1).ToString("F1", CultureInfo.InvariantCulture),
+                Math.Round(s.fpsP95, 1).ToString("F1", CultureInfo.InvariantCulture),
+                Math.Round(s.fpsMin, 1).ToString("F1", CultureInfo.InvariantCulture),
+                Math.Round(s.fpsMax, 1).ToString("F1", CultureInfo.InvariantCulture),
 
                 Escape(Application.unityVersion),
                 Escape(rp),
                 Escape(gapi),
                 Escape(SystemInfo.deviceModel),
-                Escape(SystemInfo.operatingSystem)));
+                Escape(SystemInfo.operatingSystem),
+                Escape(bottleneck),
+                Escape(rating),
+                Escape(summary)));
         }
         catch (Exception e)
         {
@@ -611,6 +619,8 @@ public class BenchmarkRunner : MonoBehaviour
     // =================== Google Sheets: helpers ===================
     private SheetRow BuildSheetRow(BenchmarkCase c, int rep, Stats s)
     {
+        AnalyzeStats(s, out string bottleneck, out string rating, out string summary);
+
         return new SheetRow
         {
             Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
@@ -626,25 +636,41 @@ public class BenchmarkRunner : MonoBehaviour
             EnabledKW = c.enabledKeywords,
             DisabledKW = c.disabledKeywords,
 
-            CPU_ms_avg = s.cpuAvg,
-            CPU_ms_p95 = s.cpuP95,
-            CPU_ms_min = s.cpuMin,
-            CPU_ms_max = s.cpuMax,
-            GPU_ms_avg = s.gpuAvg,
-            GPU_ms_p95 = s.gpuP95,
-            GPU_ms_min = s.gpuMin,
-            GPU_ms_max = s.gpuMax,
-            FPS_avg = s.fpsAvg,
-            FPS_p95 = s.fpsP95,
-            FPS_min = s.fpsMin,
-            FPS_max = s.fpsMax,
+            CPU_ms_avg = Math.Round(s.cpuAvg, 2),
+            CPU_ms_p95 = Math.Round(s.cpuP95, 2),
+            CPU_ms_min = Math.Round(s.cpuMin, 2),
+            CPU_ms_max = Math.Round(s.cpuMax, 2),
+            GPU_ms_avg = Math.Round(s.gpuAvg, 2),
+            GPU_ms_p95 = Math.Round(s.gpuP95, 2),
+            GPU_ms_min = Math.Round(s.gpuMin, 2),
+            GPU_ms_max = Math.Round(s.gpuMax, 2),
+            FPS_avg = Math.Round(s.fpsAvg, 1),
+            FPS_p95 = Math.Round(s.fpsP95, 1),
+            FPS_min = Math.Round(s.fpsMin, 1),
+            FPS_max = Math.Round(s.fpsMax, 1),
 
             UnityVersion = Application.unityVersion,
             RenderPipeline = DetectRenderPipeline(),
             GraphicsAPI = SystemInfo.graphicsDeviceType.ToString(),
             DeviceModel = SystemInfo.deviceModel,
-            OS = SystemInfo.operatingSystem
+            OS = SystemInfo.operatingSystem,
+            Bottleneck = bottleneck,
+            Quest3Rating = rating,
+            Summary = summary
         };
+    }
+
+    void AnalyzeStats(Stats s, out string bottleneck, out string rating, out string summary)
+    {
+        double frameBudget = 1000.0 / Mathf.Max(1, targetFPS);
+        double cpu = s.cpuP95;
+        double gpu = s.gpuP95;
+        bottleneck = cpu > gpu ? "CPU" : gpu > cpu ? "GPU" : "Balanced";
+        double worst = Math.Max(cpu, gpu);
+        if (worst <= frameBudget) rating = "Good";
+        else if (worst <= frameBudget * 1.5) rating = "Medium";
+        else rating = "Bad";
+        summary = $"{bottleneck} bottleneck - p95 {worst:F2}ms vs {frameBudget:F2}ms";
     }
     void EnqueueRow(SheetRow r)
     {
