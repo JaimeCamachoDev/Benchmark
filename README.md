@@ -46,3 +46,14 @@ Este proyecto incluye utilidades para medir rendimiento. Para Oculus Quest 3 es 
 
 El script `QuestPerfLogger` guarda en `persistentDataPath/QuestPerf.csv` los tiempos de CPU/GPU y el nivel de batería. Añádelo a la escena principal para tener un HUD básico y un registro de datos durante las pruebas.
 
+### Análisis automático en Google Sheets
+
+Los datos enviados a la hoja de cálculo ahora incluyen:
+
+- Valores de tiempo redondeados para facilitar la lectura.
+- Detección del cuello de botella (CPU o GPU).
+- Una valoración rápida sobre si el rendimiento es adecuado para Quest 3.
+- Un campo de resumen con la comparación contra el presupuesto de tiempo de frame.
+
+Para que estos nuevos campos aparezcan en Google Sheets, actualiza el script de Apps Script añadiendo las columnas `Bottleneck`, `Quest3Rating` y `Summary` al arreglo `HEADERS`.
+

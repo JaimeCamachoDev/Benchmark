@@ -444,8 +444,8 @@ MonoBehaviour:
   uploadBatchSize: 32
   newSheetPerRun: 1
   sheetNamePrefix: Run_
-  customRunLabel: 
-  targetFPS: 60
+  customRunLabel:
+  targetFPS: 72
 --- !u!4 &1662094702
 Transform:
   m_ObjectHideFlags: 0
