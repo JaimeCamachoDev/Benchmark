@@ -116,9 +116,9 @@ public class BenchmarkRunner : MonoBehaviour
         public bool GPUInstancing, Shadows, ReceiveShadows;
         public string EnabledKW, DisabledKW;
 
-        public double CPU_ms_avg, CPU_ms_p95, CPU_ms_min, CPU_ms_max;
-        public double GPU_ms_avg, GPU_ms_p95, GPU_ms_min, GPU_ms_max;
-        public double FPS_avg, FPS_p95, FPS_min, FPS_max;
+        public string CPU_ms_avg, CPU_ms_p95, CPU_ms_min, CPU_ms_max;
+        public string GPU_ms_avg, GPU_ms_p95, GPU_ms_min, GPU_ms_max;
+        public string FPS_avg, FPS_p95, FPS_min, FPS_max;
 
         public string UnityVersion, RenderPipeline, GraphicsAPI, DeviceModel, OS;
         public string Bottleneck;
@@ -635,19 +635,19 @@ public class BenchmarkRunner : MonoBehaviour
             ReceiveShadows = c.receiveShadows,
             EnabledKW = c.enabledKeywords,
             DisabledKW = c.disabledKeywords,
-
-            CPU_ms_avg = Math.Round(s.cpuAvg, 2),
-            CPU_ms_p95 = Math.Round(s.cpuP95, 2),
-            CPU_ms_min = Math.Round(s.cpuMin, 2),
-            CPU_ms_max = Math.Round(s.cpuMax, 2),
-            GPU_ms_avg = Math.Round(s.gpuAvg, 2),
-            GPU_ms_p95 = Math.Round(s.gpuP95, 2),
-            GPU_ms_min = Math.Round(s.gpuMin, 2),
-            GPU_ms_max = Math.Round(s.gpuMax, 2),
-            FPS_avg = Math.Round(s.fpsAvg, 1),
-            FPS_p95 = Math.Round(s.fpsP95, 1),
-            FPS_min = Math.Round(s.fpsMin, 1),
-            FPS_max = Math.Round(s.fpsMax, 1),
+          
+            CPU_ms_avg = Math.Round(s.cpuAvg, 2).ToString("F2", CultureInfo.InvariantCulture),
+            CPU_ms_p95 = Math.Round(s.cpuP95, 2).ToString("F2", CultureInfo.InvariantCulture),
+            CPU_ms_min = Math.Round(s.cpuMin, 2).ToString("F2", CultureInfo.InvariantCulture),
+            CPU_ms_max = Math.Round(s.cpuMax, 2).ToString("F2", CultureInfo.InvariantCulture),
+            GPU_ms_avg = Math.Round(s.gpuAvg, 2).ToString("F2", CultureInfo.InvariantCulture),
+            GPU_ms_p95 = Math.Round(s.gpuP95, 2).ToString("F2", CultureInfo.InvariantCulture),
+            GPU_ms_min = Math.Round(s.gpuMin, 2).ToString("F2", CultureInfo.InvariantCulture),
+            GPU_ms_max = Math.Round(s.gpuMax, 2).ToString("F2", CultureInfo.InvariantCulture),
+            FPS_avg = Math.Round(s.fpsAvg, 1).ToString("F1", CultureInfo.InvariantCulture),
+            FPS_p95 = Math.Round(s.fpsP95, 1).ToString("F1", CultureInfo.InvariantCulture),
+            FPS_min = Math.Round(s.fpsMin, 1).ToString("F1", CultureInfo.InvariantCulture),
+            FPS_max = Math.Round(s.fpsMax, 1).ToString("F1", CultureInfo.InvariantCulture),
 
             UnityVersion = Application.unityVersion,
             RenderPipeline = DetectRenderPipeline(),

@@ -55,3 +55,5 @@ Los datos enviados a la hoja de cálculo ahora incluyen:
 - Una valoración rápida sobre si el rendimiento es adecuado para Quest 3.
 - Un campo de resumen con la comparación contra el presupuesto de tiempo de frame.
 
+Para que estos nuevos campos aparezcan en Google Sheets, actualiza el script de Apps Script añadiendo las columnas `Bottleneck`, `Quest3Rating` y `Summary` al arreglo `HEADERS`.
+
