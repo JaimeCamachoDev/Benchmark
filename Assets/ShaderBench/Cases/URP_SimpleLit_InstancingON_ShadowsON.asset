@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 77cace524a945e54c90a00f48f3176db, type: 3}
-  m_Name: URP_Lit_InstancingON_ShadowsOFF
+  m_Name: URP_SimpleLit_InstancingON_ShadowsON
   m_EditorClassIdentifier: 
-  caseName: URP/Lit (Instancing ON, Shadows OFF)
-  prefab: {fileID: 7002405325371833081, guid: 5c95c7d09801f6f43adc2d09551c0482, type: 3}
-  gridX: 50
-  gridY: 50
-  spacing: 1
+  caseName: URP_SimpleLit_InstancingON_ShadowsON
+  prefab: {fileID: 8781758657586902172, guid: ca812307e7e820242aae2786b43f534c, type: 3}
+  gridX: 100
+  gridY: 100
+  spacing: 2
   overrideMaterial: 1
-  material: {fileID: 2100000, guid: 232b113539c6926408623efb0cb31760, type: 2}
+  material: {fileID: 2100000, guid: 0d5032c163bf85f41a262ff354014e41, type: 2}
   enableGPUInstancing: 1
-  shadowCasting: 0
-  receiveShadows: 0
+  shadowCasting: 1
+  receiveShadows: 1
   enabledKeywords: 
   disabledKeywords: 

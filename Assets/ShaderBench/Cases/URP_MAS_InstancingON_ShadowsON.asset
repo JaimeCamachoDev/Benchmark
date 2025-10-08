@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 77cace524a945e54c90a00f48f3176db, type: 3}
-  m_Name: URP_MAS_InstancingON_ShadowsOFF
+  m_Name: URP_MAS_InstancingON_ShadowsON
   m_EditorClassIdentifier: 
-  caseName: URP_MAS_InstancingON_ShadowsOFF
+  caseName: URP_MAS_InstancingON_ShadowsON
   prefab: {fileID: 5040209654722044607, guid: 568701b2c46748e4b9bef8f26f23df78, type: 3}
-  gridX: 50
-  gridY: 50
-  spacing: 1
+  gridX: 100
+  gridY: 100
+  spacing: 2
   overrideMaterial: 1
   material: {fileID: 2100000, guid: 30fe1da1c422a32458fa94b3259b4653, type: 2}
   enableGPUInstancing: 1
-  shadowCasting: 0
-  receiveShadows: 0
+  shadowCasting: 1
+  receiveShadows: 1
   enabledKeywords: 
   disabledKeywords: 
