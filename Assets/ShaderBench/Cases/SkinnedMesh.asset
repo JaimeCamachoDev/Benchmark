@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77cace524a945e54c90a00f48f3176db, type: 3}
+  m_Name: SkinnedMesh
+  m_EditorClassIdentifier: 
+  caseName: SkinnedMesh
+  prefab: {fileID: 7037546848172259273, guid: 356f88d79e3e6064bac0f9614741e1cf, type: 3}
+  gridX: 100
+  gridY: 100
+  spacing: 2
+  overrideMaterial: 1
+  material: {fileID: 2100000, guid: 5331c3cdb224d93469c583b73d99815e, type: 2}
+  enableGPUInstancing: 1
+  shadowCasting: 1
+  receiveShadows: 1
+  enabledKeywords: 
+  disabledKeywords: 
