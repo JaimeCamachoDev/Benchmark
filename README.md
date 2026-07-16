@@ -32,26 +32,69 @@ Desactiva funciones que no necesitas en `Settings → Features`:
 
 </footer>
 
-## Pruebas recomendadas para Quest 3 (VR)
+## Sistema de benchmark por departamentos (Programación / Animación / Modelado / VFX)
 
-Este proyecto incluye utilidades para medir rendimiento. Para Oculus Quest 3 es recomendable diseñar pruebas que cubran:
+El presupuesto de rendimiento del proyecto se reparte a partes iguales entre las 4 áreas
+que pueden hacer caer los fps en Quest 3 / Pico 4:
 
-- **Fill‑rate y resolución**: medir escenas con muchos píxeles (quads a pantalla completa) para detectar cuellos de botella en GPU.
-- **Complejidad geométrica**: usar rejillas de mallas con distintos números de vértices para estresar la carga de CPU/GPU.
-- **Iluminación y post‑proceso**: comparar distintos números de luces, sombras y efectos URP.
-- **Sistemas de partículas/VFX**: evaluar costes de efectos visuales frecuentes en VR.
-- **Memoria y streaming**: comprobar impacto de texturas o modelos de gran tamaño.
+| Departamento | 25% | Qué se mide |
+|---|---|---|
+| **Programación** | ✅ | Coste de CPU puro: raycasts, GC allocations, IA, lógica de juego |
+| **Animación** | ✅ | Animator/Skinned Mesh vs VAT (Vertex Animation Textures), nº de personajes simultáneos |
+| **Modelado** | ✅ | Nº de triángulos, draw calls, batching/instancing, LOD |
+| **VFX** | ✅ | Shaders, materiales, sombras, partículas, post‑proceso |
 
-### Logger de métricas en dispositivo
+El motor de medición es el mismo para las 4 áreas (`Assets/ShaderBench/BenchmarkRunner.cs` +
+`BenchmarkCase.cs`), así que aprender a usarlo una vez sirve para todos los departamentos.
 
-El script `QuestPerfLogger` guarda en `persistentDataPath/QuestPerf.csv` los tiempos de CPU/GPU y el nivel de batería. Añádelo a la escena principal para tener un HUD básico y un registro de datos durante las pruebas.
+### Presupuesto de frame en Quest 3 / Pico 4
+
+Ambos dispositivos usan el mismo chip (Snapdragon XR2 Gen 2) y modos de refresco similares:
+
+| Refresco | Presupuesto de frame |
+|---|---|
+| 72 Hz | 13.9 ms |
+| 90 Hz | 11.1 ms |
+| 120 Hz | 8.3 ms |
+
+Reparte ese presupuesto entre CPU y GPU (orientativo: ~8‑10 ms cada uno) dejando 2‑3 ms de
+margen para el throttling térmico. `BenchmarkRunner` compara el p95 de CPU/GPU contra
+`targetFPS` y marca cada caso como `Good`/`Medium`/`Bad` automáticamente.
+
+### Cómo crear un caso de benchmark (cualquier departamento)
+
+1. En Unity: `Assets > Create > ShaderBench > Benchmark Case` (o usa los generadores de
+   ejemplos del menú `JaimeCamachoDev/ShaderBench/...` para partir de una plantilla).
+2. Arrastra tu prefab (tu script, tu personaje animado, tu malla, tu efecto) al campo `Prefab`.
+3. Marca el campo **Departamento** (`Programming`, `Animation`, `Modeling` o `VFX`).
+4. Ajusta `gridX`/`gridY`/`spacing` para decidir cuántas copias se instancian a la vez.
+5. Añade el caso a la lista `cases` de un `BenchmarkRunner` en la escena y pulsa **Play** → **[ESPACIO]** para lanzar la medición ([ESC] cancela).
+
+Casos ya incluidos como ejemplo:
+
+- **VFX/Rendering**: `Baseline_Unlit_InstancingON`, `URP_Lit_*`, `URP_MAS_*`, `URP_SimpleLit_*`.
+- **Animación**: `VAT`, `SkinnedMesh`, `moveAnimation`, `moveSpline` (comparan Animator/Skinned Mesh vs VAT).
+- **Programación**: genera `Programming_RaycastStress` desde el menú `JaimeCamachoDev/ShaderBench/Create Programming Example Case` (usa `ProgrammingStressUnit.cs`, en `Assets/1-Programming/`, como plantilla para vuestras propias cargas de CPU).
+- **Modelado**: genera `Modeling_LowPoly_Baseline` / `Modeling_HighPoly_Ankh` desde `JaimeCamachoDev/ShaderBench/Create Modeling Example Cases`.
 
 ### Análisis automático en Google Sheets
 
-Los datos enviados a la hoja de cálculo ahora incluyen:
+Cada fila subida a la hoja de cálculo incluye ahora el **Departamento** además de:
 
 - Valores de tiempo redondeados para facilitar la lectura.
 - Detección del cuello de botella (CPU o GPU).
-- Una valoración rápida sobre si el rendimiento es adecuado para Quest 3.
+- Una valoración rápida sobre si el rendimiento es adecuado para Quest 3 / Pico 4.
 - Un campo de resumen con la comparación contra el presupuesto de tiempo de frame.
+
+Esto permite filtrar/pivotar la hoja por departamento para ver de un vistazo si algún área
+concreta está gastando más de su 25% del presupuesto.
+
+### Herramientas complementarias en dispositivo real
+
+`BenchmarkRunner` mide dentro del Editor/Player vía `FrameTimingManager`, pero para validar
+en el propio Quest 3 / Pico 4 conviene combinarlo con:
+
+- **OVR Metrics Tool** + **ovrgpuprofiler** (Meta): overlay y CSV en el propio headset, con throttling térmico y stale frames.
+- **Snapdragon Profiler / RenderDoc**: captura de frame a bajo nivel cuando el cuello de botella no está claro.
+- Bloquear el nivel de CPU/GPU antes de medir, para que las comparaciones entre ejecuciones sean válidas.
 
