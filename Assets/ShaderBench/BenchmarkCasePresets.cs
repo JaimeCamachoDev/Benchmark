@@ -49,6 +49,84 @@ public static class BenchmarkCasePresets
         Debug.Log("[ShaderBench] Example cases created.");
     }
 
+    [MenuItem("JaimeCamachoDev/ShaderBench/Create Programming Example Case")]
+    public static void CreateProgrammingExample()
+    {
+        string folder = GetSelectedPathOrFallback();
+
+        // Prefab "unidad de coste" para el departamento de Programación.
+        var unit = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        unit.name = "ProgrammingStressUnit";
+        unit.AddComponent<ProgrammingStressUnit>();
+        var prefab = PrefabUtility.SaveAsPrefabAsset(unit, "Assets/1-Programming/ProgrammingStressUnit.prefab");
+        Object.DestroyImmediate(unit);
+
+        var programmingCase = ScriptableObject.CreateInstance<BenchmarkCase>();
+        programmingCase.name = "Programming_RaycastStress";
+        programmingCase.caseName = "Programming - Raycast Stress (400 units)";
+        programmingCase.department = PerfDepartment.Programming;
+        programmingCase.prefab = prefab;
+        programmingCase.gridX = 20; programmingCase.gridY = 20; programmingCase.spacing = 1.5f;
+        programmingCase.overrideMaterial = false;
+        programmingCase.enableGPUInstancing = true;
+        programmingCase.shadowCasting = ShadowCastingMode.Off;
+        programmingCase.receiveShadows = false;
+        AssetDatabase.CreateAsset(programmingCase, $"{folder}/Programming_RaycastStress.asset");
+
+        AssetDatabase.SaveAssets();
+        Selection.activeObject = programmingCase;
+        Debug.Log("[ShaderBench] Programming example case created.");
+    }
+
+    [MenuItem("JaimeCamachoDev/ShaderBench/Create Modeling Example Cases")]
+    public static void CreateModelingExamples()
+    {
+        string folder = GetSelectedPathOrFallback();
+
+        // Baseline low-poly (cubo) para comparar contra geometría más pesada.
+        var lowPolyObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        lowPolyObj.name = "ModelingBench_LowPoly";
+        var lowPolyPrefab = PrefabUtility.SaveAsPrefabAsset(lowPolyObj, "Assets/2-Art/1-3D/ModelingBench_LowPoly.prefab");
+        Object.DestroyImmediate(lowPolyObj);
+
+        var lowPolyCase = ScriptableObject.CreateInstance<BenchmarkCase>();
+        lowPolyCase.name = "Modeling_LowPoly_Baseline";
+        lowPolyCase.caseName = "Modeling - Low Poly Baseline (Cube)";
+        lowPolyCase.department = PerfDepartment.Modeling;
+        lowPolyCase.prefab = lowPolyPrefab;
+        lowPolyCase.gridX = 30; lowPolyCase.gridY = 30; lowPolyCase.spacing = 1.5f;
+        lowPolyCase.overrideMaterial = false;
+        lowPolyCase.enableGPUInstancing = true;
+        lowPolyCase.shadowCasting = ShadowCastingMode.On;
+        lowPolyCase.receiveShadows = true;
+        AssetDatabase.CreateAsset(lowPolyCase, $"{folder}/Modeling_LowPoly_Baseline.asset");
+
+        // Malla orgánica más pesada ya presente en el proyecto (Ankh) como referencia de "alto poly".
+        var highPolyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/2-Art/1-3D/Ankh/Nueva carpeta/Geo.prefab");
+        if (highPolyPrefab != null)
+        {
+            var highPolyCase = ScriptableObject.CreateInstance<BenchmarkCase>();
+            highPolyCase.name = "Modeling_HighPoly_Ankh";
+            highPolyCase.caseName = "Modeling - High Poly (Ankh)";
+            highPolyCase.department = PerfDepartment.Modeling;
+            highPolyCase.prefab = highPolyPrefab;
+            highPolyCase.gridX = 30; highPolyCase.gridY = 30; highPolyCase.spacing = 1.5f;
+            highPolyCase.overrideMaterial = false;
+            highPolyCase.enableGPUInstancing = true;
+            highPolyCase.shadowCasting = ShadowCastingMode.On;
+            highPolyCase.receiveShadows = true;
+            AssetDatabase.CreateAsset(highPolyCase, $"{folder}/Modeling_HighPoly_Ankh.asset");
+        }
+        else
+        {
+            Debug.LogWarning("[ShaderBench] No se encontró el prefab Ankh de referencia; solo se creó el caso Low Poly.");
+        }
+
+        AssetDatabase.SaveAssets();
+        Selection.activeObject = lowPolyCase;
+        Debug.Log("[ShaderBench] Modeling example case(s) created.");
+    }
+
     static string GetSelectedPathOrFallback()
     {
         string path = "Assets";

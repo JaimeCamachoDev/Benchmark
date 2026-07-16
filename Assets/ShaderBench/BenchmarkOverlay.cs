@@ -36,7 +36,7 @@ public class BenchmarkOverlay : MonoBehaviour
         }
         else
         {
-            GUILayout.Label($"Caso: <b>{runner.CurrentCaseName}</b>  [{runner.CurrentIndex + 1}/{runner.TotalCases}]  | Repetición {runner.CurrentRepetition}/{runner.Repetitions}", style);
+            GUILayout.Label($"Caso: <b>{runner.CurrentCaseName}</b>  [{runner.CurrentIndex + 1}/{runner.TotalCases}]  | Depto: <b>{runner.CurrentDepartment}</b> | Repetición {runner.CurrentRepetition}/{runner.Repetitions}", style);
             GUILayout.Label($"Estado: <b>{runner.CurrentPhase}</b>  | Tiempo fase: {runner.CurrentPhaseElapsed:F1}s / {runner.CurrentPhaseDuration:F1}s", style);
             GUILayout.Label($"FPS (instante): {runner.InstantFPS:F1}", style);
             GUILayout.Label($"CPU ms (instante): {runner.InstantCPUms:F2}  |  GPU ms (instante): {runner.InstantGPUms:F2}", style);

@@ -7,18 +7,22 @@ using UnityEngine.Rendering;
 public class BenchmarkCase : ScriptableObject
 {
     [Header("Identidad")]
-    [Tooltip("Nombre legible que verás en overlay y CSV.")]
+    [Tooltip("Nombre legible que verï¿½s en overlay y CSV.")]
     public string caseName = "URP/Lit - Instancing ON";
 
-    [Header("Geometría")]
-    [Tooltip("Prefab a instanciar. Si está vacío, se usará un Cubo por defecto.")]
+    [Header("Departamento (25% del presupuesto de rendimiento cada uno)")]
+    [Tooltip("ï¿½rea responsable de este caso: Programming, Animation, Modeling o VFX. Se usa para agrupar/ponderar resultados en CSV y Sheets.")]
+    public PerfDepartment department = PerfDepartment.VFX;
+
+    [Header("Geometrï¿½a")]
+    [Tooltip("Prefab a instanciar. Si estï¿½ vacï¿½o, se usarï¿½ un Cubo por defecto.")]
     public GameObject prefab;
     [Min(1)] public int gridX = 50;
     [Min(1)] public int gridY = 50;
     [Min(0.01f)] public float spacing = 1.0f;
 
     [Header("Material")]
-    [Tooltip("Si está activo, se sobrescribe el material del prefab.")]
+    [Tooltip("Si estï¿½ activo, se sobrescribe el material del prefab.")]
     public bool overrideMaterial = false;
     public Material material;
 
@@ -37,7 +41,7 @@ public class BenchmarkCase : ScriptableObject
 
     /// <summary>
     /// Aplica material, keywords y flags de sombras/instancing a un renderer concreto.
-    /// El BenchmarkRunner llama a este método para cada instancia creada del grid.
+    /// El BenchmarkRunner llama a este mï¿½todo para cada instancia creada del grid.
     /// </summary>
     public void ApplyToRenderer(Renderer r)
     {
@@ -84,7 +88,7 @@ public class BenchmarkCase : ScriptableObject
             }
             catch (Exception)
             {
-                // Silenciar keywords inválidas sin romper la ejecución.
+                // Silenciar keywords invï¿½lidas sin romper la ejecuciï¿½n.
             }
         }
     }

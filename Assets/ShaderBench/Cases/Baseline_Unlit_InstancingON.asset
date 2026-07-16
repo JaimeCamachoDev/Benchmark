@@ -22,5 +22,6 @@ MonoBehaviour:
   enableGPUInstancing: 1
   shadowCasting: 0
   receiveShadows: 0
-  enabledKeywords: 
-  disabledKeywords: 
+  enabledKeywords:
+  disabledKeywords:
+  department: 3

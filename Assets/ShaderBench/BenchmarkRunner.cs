@@ -79,6 +79,7 @@ public class BenchmarkRunner : MonoBehaviour
     public bool IsRunning { get; private set; }
     public bool HasFinished { get; private set; }
     public string CurrentCaseName { get; private set; } = "-";
+    public string CurrentDepartment { get; private set; } = "-";
     public string CurrentPhase { get; private set; } = "-";
     public float CurrentPhaseElapsed { get; private set; }
     public float CurrentPhaseDuration { get; private set; }
@@ -110,6 +111,7 @@ public class BenchmarkRunner : MonoBehaviour
     {
         public string Timestamp;
         public string CaseName;
+        public string Department;
         public int Repetition;
         public int GridX, GridY, Count;
         public string Spacing;
@@ -219,6 +221,7 @@ public class BenchmarkRunner : MonoBehaviour
             CurrentIndex = i;
             var c = cases[i];
             CurrentCaseName = string.IsNullOrEmpty(c.caseName) ? $"Case_{i + 1}" : c.caseName;
+            CurrentDepartment = c.department.ToString();
 
             for (int rep = 1; rep <= repetitions; rep++)
             {
@@ -286,7 +289,7 @@ public class BenchmarkRunner : MonoBehaviour
 
             using var w = new StreamWriter(path, false);
             w.WriteLine(string.Join(",",
-                "Timestamp", "CaseName", "Repetition", "GridX", "GridY", "Count", "Spacing",
+                "Timestamp", "CaseName", "Department", "Repetition", "GridX", "GridY", "Count", "Spacing",
                 "GPUInstancing", "Shadows", "ReceiveShadows", "EnabledKW", "DisabledKW",
                 "CPU_ms_avg", "CPU_ms_p95", "CPU_ms_min", "CPU_ms_max",
                 "GPU_ms_avg", "GPU_ms_p95", "GPU_ms_min", "GPU_ms_max",
@@ -311,7 +314,7 @@ public class BenchmarkRunner : MonoBehaviour
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             w.WriteLine(string.Join(",",
-                Escape(timestamp), Escape(CurrentCaseName), repetition,
+                Escape(timestamp), Escape(CurrentCaseName), Escape(c.department.ToString()), repetition,
                 c.gridX, c.gridY, c.gridX * c.gridY,
                 c.spacing.ToString(CultureInfo.InvariantCulture),
                 c.enableGPUInstancing,
@@ -625,6 +628,7 @@ public class BenchmarkRunner : MonoBehaviour
         {
             Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             CaseName = CurrentCaseName,
+            Department = c.department.ToString(),
             Repetition = rep,
             GridX = c.gridX,
             GridY = c.gridY,
@@ -774,7 +778,7 @@ public class BenchmarkRunner : MonoBehaviour
 
         int y = pad + 25;
         Label(pad + 10, ref y, $"Estado: {(IsRunning ? "Ejecutando" : HasFinished ? "Terminado" : "Listo")}");
-        Label(pad + 10, ref y, $"Caso: {CurrentCaseName}  ({CurrentIndex + 1}/{Mathf.Max(1, TotalCases)})");
+        Label(pad + 10, ref y, $"Caso: {CurrentCaseName}  ({CurrentIndex + 1}/{Mathf.Max(1, TotalCases)})  |  Depto: {CurrentDepartment}");
         Label(pad + 10, ref y, $"Repetición: {Mathf.Max(1, CurrentRepetition)}/{Mathf.Max(1, Repetitions)}");
         Label(pad + 10, ref y, $"Fase: {CurrentPhase}  ({CurrentPhaseElapsed:F1}/{Mathf.Max(0.01f, CurrentPhaseDuration):F1}s)");
         Label(pad + 10, ref y, $"FPS inst.: {InstantFPS:F1} | CPU: {InstantCPUms:F2} ms | GPU: {InstantGPUms:F2} ms");
