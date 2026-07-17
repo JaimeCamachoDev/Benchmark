@@ -108,17 +108,18 @@ totalmente independiente, en `Assets/PerfLab/`. No toca ni depende de `ShaderBen
 ### Cómo se usa
 
 1. Menú `JaimeCamachoDev/PerfLab/Create Analyzer In Scene` (crea un GameObject `PerfLab Analyzer` en la escena abierta).
-2. Arrastra tu prefab (script, personaje, malla, efecto VFX... cualquier cosa) al campo **Subject Prefab**.
+2. Arrastra tu elemento (script, personaje, malla, efecto VFX... cualquier cosa) al campo **Subject Prefab**: puede ser un prefab del Proyecto (se instancia solo) o un objeto que ya tengas colocado en la escena (se usa tal cual, en su sitio, sin duplicarlo).
 3. Elige **Department** y el **Target Hz** del dispositivo: `30 / 60 / 72 / 90 / 120`.
 4. Dale a **Play**. Sin teclas ni pasos extra.
 
 ### Qué hace por dentro
 
-1. Mide la escena con el elemento **apagado** un par de segundos → línea base.
+1. Mide la escena con el elemento **apagado** un par de segundos → línea base (todo con `Update()`, sin corrutinas ni esperas ligadas al renderizado — funciona igual si tienes en foco la pestaña Game o la Scene).
 2. Activa el elemento y mide **en vivo y de forma continua** (ventana móvil, no un único disparo) la diferencia de CPU/GPU frente a esa línea base.
 3. El resultado se muestra en dos sitios a la vez:
    - Un **panel flotante en el mundo** que siempre mira a la cámara (se ve dentro del propio casco Quest 3/Pico 4, colocado justo encima del elemento).
    - Un **overlay simple en pantalla** (para editor/desktop).
-4. El "cap" (límite en ms) es automático: `(1000 / Hz) / 4`, es decir, el 25% del presupuesto de frame que le toca a ese departamento. Si un elemento necesita un límite distinto, se puede fijar a mano en **Custom Budget Ms**.
-5. Verde = dentro de presupuesto, rojo = fuera. Sin CSV ni Sheets — es una herramienta de comprobación rápida, no de archivo histórico (para eso está `ShaderBench`).
+4. El cap (límite en ms) es siempre automático: `(1000 / Hz) / 4`, es decir, el 25% del presupuesto de frame que le toca a ese departamento a los Hz elegidos. No hay que configurar nada más.
+5. Si entra en el cap: panel verde, "✔ DENTRO DEL PRESUPUESTO". Si no entra: panel y overlay se ponen **en rojo grande**, "✖ NO VÁLIDO — FUERA DE PRESUPUESTO", imposible de pasar por alto.
+6. Sin CSV ni Sheets — es una herramienta de comprobación rápida, no de archivo histórico (para eso está `ShaderBench`).
 
