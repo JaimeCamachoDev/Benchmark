@@ -18,7 +18,7 @@ using UnityEngine.UI;
 public class PerfLabAnalyzer : MonoBehaviour
 {
     [Header("Elemento a analizar (arrástralo aquí)")]
-    [Tooltip("Prefab del objeto/script/efecto/personaje que quieres medir. Se instancia solo al darle a Play.")]
+    [Tooltip("Arrastra un prefab del Proyecto (se instanciará al darle a Play) o un objeto que ya esté en la escena (se usará directamente, sin clonarlo).")]
     public GameObject subjectPrefab;
 
     [Header("Departamento y presupuesto")]
@@ -71,7 +71,15 @@ public class PerfLabAnalyzer : MonoBehaviour
 
         if (subjectPrefab != null)
         {
-            _subjectInstance = Instantiate(subjectPrefab, transform.position, transform.rotation, transform);
+            // Si ya es un objeto de la escena (no un prefab del Proyecto), se usa
+            // directamente en su sitio: clonarlo dejaría el original sin tocar y
+            // parecería que "nunca se activa" porque estarías mirando el objeto
+            // equivocado.
+            bool isSceneInstance = subjectPrefab.scene.IsValid();
+            _subjectInstance = isSceneInstance
+                ? subjectPrefab
+                : Instantiate(subjectPrefab, transform.position, transform.rotation, transform);
+
             _subjectInstance.SetActive(false);
         }
 
@@ -120,7 +128,11 @@ public class PerfLabAnalyzer : MonoBehaviour
 
         while (Time.realtimeSinceStartup - start < seconds)
         {
-            yield return new WaitForEndOfFrame();
+            // OJO: WaitForEndOfFrame() no se dispara si la vista Game no se está
+            // renderizando (p. ej. con la pestaña Scene en foco), lo que dejaba la
+            // corrutina colgada aquí para siempre y el objeto nunca se activaba.
+            // yield return null avanza un frame sin depender de que se renderice.
+            yield return null;
             SampleFrame(out double cpu, out double gpu);
             cpuList.Add(cpu);
             gpuList.Add(gpu);

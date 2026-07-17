@@ -108,7 +108,7 @@ totalmente independiente, en `Assets/PerfLab/`. No toca ni depende de `ShaderBen
 ### Cómo se usa
 
 1. Menú `JaimeCamachoDev/PerfLab/Create Analyzer In Scene` (crea un GameObject `PerfLab Analyzer` en la escena abierta).
-2. Arrastra tu prefab (script, personaje, malla, efecto VFX... cualquier cosa) al campo **Subject Prefab**.
+2. Arrastra tu elemento (script, personaje, malla, efecto VFX... cualquier cosa) al campo **Subject Prefab**: puede ser un prefab del Proyecto (se instancia solo) o un objeto que ya tengas colocado en la escena (se usa tal cual, en su sitio, sin duplicarlo).
 3. Elige **Department** y el **Target Hz** del dispositivo: `30 / 60 / 72 / 90 / 120`.
 4. Dale a **Play**. Sin teclas ni pasos extra.
 
