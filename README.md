@@ -98,3 +98,27 @@ en el propio Quest 3 / Pico 4 conviene combinarlo con:
 - **Snapdragon Profiler / RenderDoc**: captura de frame a bajo nivel cuando el cuello de botella no está claro.
 - Bloquear el nivel de CPU/GPU antes de medir, para que las comparaciones entre ejecuciones sean válidas.
 
+## PerfLab: analizar UN solo elemento (arrastrar → Play → leer el resultado)
+
+`ShaderBench` está pensado para comparar muchos casos a fondo (rejillas, CSV, Sheets). Para
+el día a día de cualquier departamento (técnico o artístico) que solo necesita saber
+**"¿cuántos ms cuesta ESTO y entra en presupuesto?"**, hay un segundo sistema en paralelo,
+totalmente independiente, en `Assets/PerfLab/`. No toca ni depende de `ShaderBench`.
+
+### Cómo se usa
+
+1. Menú `JaimeCamachoDev/PerfLab/Create Analyzer In Scene` (crea un GameObject `PerfLab Analyzer` en la escena abierta).
+2. Arrastra tu prefab (script, personaje, malla, efecto VFX... cualquier cosa) al campo **Subject Prefab**.
+3. Elige **Department** y el **Target Hz** del dispositivo: `30 / 60 / 72 / 90 / 120`.
+4. Dale a **Play**. Sin teclas ni pasos extra.
+
+### Qué hace por dentro
+
+1. Mide la escena con el elemento **apagado** un par de segundos → línea base.
+2. Activa el elemento y mide **en vivo y de forma continua** (ventana móvil, no un único disparo) la diferencia de CPU/GPU frente a esa línea base.
+3. El resultado se muestra en dos sitios a la vez:
+   - Un **panel flotante en el mundo** que siempre mira a la cámara (se ve dentro del propio casco Quest 3/Pico 4, colocado justo encima del elemento).
+   - Un **overlay simple en pantalla** (para editor/desktop).
+4. El "cap" (límite en ms) es automático: `(1000 / Hz) / 4`, es decir, el 25% del presupuesto de frame que le toca a ese departamento. Si un elemento necesita un límite distinto, se puede fijar a mano en **Custom Budget Ms**.
+5. Verde = dentro de presupuesto, rojo = fuera. Sin CSV ni Sheets — es una herramienta de comprobación rápida, no de archivo histórico (para eso está `ShaderBench`).
+
