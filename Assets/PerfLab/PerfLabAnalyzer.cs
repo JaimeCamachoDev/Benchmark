@@ -30,10 +30,12 @@ public class PerfLabAnalyzer : MonoBehaviour
     public PerfLabTargetHz targetHz = PerfLabTargetHz.Hz72;
 
     [Header("Medición")]
-    [Tooltip("Segundos midiendo la escena SIN el elemento (línea base) antes de activarlo.")]
-    [Min(0.1f)] public float baselineSeconds = 1.5f;
-    [Tooltip("Ventana de tiempo (segundos) usada para el promedio en vivo una vez el elemento está activo.")]
-    [Min(0.1f)] public float rollingWindowSeconds = 1.0f;
+    [Tooltip("Segundos midiendo la escena SIN el elemento (línea base) antes de activarlo. Cuanto más largo, menos ruido.")]
+    [Min(0.5f)] public float baselineSeconds = 3f;
+    [Tooltip("Ventana de tiempo (segundos) usada para el promedio en vivo una vez el elemento está activo. Cuanto más largo, menos ruido pero más lento en reaccionar.")]
+    [Min(0.5f)] public float rollingWindowSeconds = 2.5f;
+    [Tooltip("Fuerza VSync OFF y fps sin límite mientras dura la medición. Con VSync ON el frame se redondea a múltiplos del refresco (p. ej. 16.6 ms a 60Hz) y esconde costes pequeños hasta que se pasa de ese múltiplo, dando lecturas en escalón (0 y luego saltos).")]
+    public bool forceUncappedFramerate = true;
 
     [Header("Visualización")]
     public bool showWorldPanel = true;
@@ -71,10 +73,21 @@ public class PerfLabAnalyzer : MonoBehaviour
     Image _worldBackground;
     Camera _cam;
 
+    int _prevVSyncCount;
+    int _prevTargetFrameRate;
+
     void Awake()
     {
         _cam = Camera.main;
         BudgetMs = (1000.0 / (int)targetHz) / 4.0;
+
+        if (forceUncappedFramerate)
+        {
+            _prevVSyncCount = QualitySettings.vSyncCount;
+            _prevTargetFrameRate = Application.targetFrameRate;
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = -1;
+        }
 
         if (subjectPrefab != null)
         {
@@ -99,6 +112,15 @@ public class PerfLabAnalyzer : MonoBehaviour
         if (showWorldPanel) BuildWorldPanel();
     }
 
+    void OnDestroy()
+    {
+        if (forceUncappedFramerate)
+        {
+            QualitySettings.vSyncCount = _prevVSyncCount;
+            Application.targetFrameRate = _prevTargetFrameRate;
+        }
+    }
+
     void Update()
     {
         SampleFrame(out double cpu, out double gpu);
@@ -113,8 +135,8 @@ public class PerfLabAnalyzer : MonoBehaviour
 
             if (elapsed >= baselineSeconds)
             {
-                _baselineCpuAvg = Average(_baselineCpuSamples);
-                _baselineGpuAvg = Average(_baselineGpuSamples);
+                _baselineCpuAvg = TrimmedMean(_baselineCpuSamples);
+                _baselineGpuAvg = TrimmedMean(_baselineGpuSamples);
 
                 if (_subjectInstance != null)
                 {
@@ -123,7 +145,6 @@ public class PerfLabAnalyzer : MonoBehaviour
                 }
 
                 _phase = Phase.Measuring;
-                StatusText = "Midiendo coste en vivo...";
             }
         }
         else
@@ -131,12 +152,17 @@ public class PerfLabAnalyzer : MonoBehaviour
             _liveSamples.Enqueue(new SampleEntry { Time = Time.realtimeSinceStartup, Cpu = cpu, Gpu = gpu });
             TrimOldSamples();
 
-            double avgCpu = AverageCpu(_liveSamples);
-            double avgGpu = AverageGpu(_liveSamples);
+            double avgCpu = TrimmedMeanCpu(_liveSamples);
+            double avgGpu = TrimmedMeanGpu(_liveSamples);
 
             CostCpuMs = Math.Max(0.0, avgCpu - _baselineCpuAvg);
             CostGpuMs = Math.Max(0.0, avgGpu - _baselineGpuAvg);
             IsWithinBudget = CostTotalMs <= BudgetMs;
+
+            bool windowFull = _liveSamples.Count > 0 && (Time.realtimeSinceStartup - _liveSamples.Peek().Time) >= rollingWindowSeconds * 0.9f;
+            StatusText = windowFull
+                ? "Midiendo coste en vivo..."
+                : $"Rellenando ventana de medición... ({_liveSamples.Count} muestras)";
         }
     }
 
@@ -164,28 +190,51 @@ public class PerfLabAnalyzer : MonoBehaviour
             _liveSamples.Dequeue();
     }
 
-    static double Average(List<double> values)
+    // Media recortada: descarta el 15% de muestras más altas y más bajas antes de
+    // promediar. Un solo pico de GC/OS (muy habitual en el Editor) puede ser varias
+    // veces más grande que el coste real de un objeto suelto; una media normal deja
+    // que ese pico contamine el resultado y el número "salta" de forma aparentemente
+    // aleatoria. La mediana recortada absorbe esos picos sin perder el desplazamiento
+    // real que introduce el elemento medido.
+    const float TrimFraction = 0.15f;
+
+    static double TrimmedMean(List<double> values)
     {
         if (values.Count == 0) return 0.0;
-        double sum = 0.0;
-        for (int i = 0; i < values.Count; i++) sum += values[i];
-        return sum / values.Count;
+        var sorted = new List<double>(values);
+        sorted.Sort();
+        return TrimmedMeanOfSorted(sorted);
     }
 
-    static double AverageCpu(Queue<SampleEntry> samples)
+    static double TrimmedMeanCpu(Queue<SampleEntry> samples)
     {
         if (samples.Count == 0) return 0.0;
-        double sum = 0.0;
-        foreach (var s in samples) sum += s.Cpu;
-        return sum / samples.Count;
+        var sorted = new List<double>(samples.Count);
+        foreach (var s in samples) sorted.Add(s.Cpu);
+        sorted.Sort();
+        return TrimmedMeanOfSorted(sorted);
     }
 
-    static double AverageGpu(Queue<SampleEntry> samples)
+    static double TrimmedMeanGpu(Queue<SampleEntry> samples)
     {
         if (samples.Count == 0) return 0.0;
+        var sorted = new List<double>(samples.Count);
+        foreach (var s in samples) sorted.Add(s.Gpu);
+        sorted.Sort();
+        return TrimmedMeanOfSorted(sorted);
+    }
+
+    static double TrimmedMeanOfSorted(List<double> sorted)
+    {
+        int trim = Mathf.FloorToInt(sorted.Count * TrimFraction);
+        int start = trim;
+        int end = sorted.Count - trim;
+        if (end <= start) { start = 0; end = sorted.Count; }
+
         double sum = 0.0;
-        foreach (var s in samples) sum += s.Gpu;
-        return sum / samples.Count;
+        int count = 0;
+        for (int i = start; i < end; i++) { sum += sorted[i]; count++; }
+        return count > 0 ? sum / count : 0.0;
     }
 
     // =================== Panel flotante en el mundo (visible en VR) ===================
@@ -295,7 +344,6 @@ public class PerfLabAnalyzer : MonoBehaviour
         bool measuring = _phase == Phase.Measuring;
         bool fail = measuring && !IsWithinBudget;
 
-        var boxStyle = new GUIStyle(GUI.skin.box);
         var labelStyle = new GUIStyle(GUI.skin.label) { richText = true, fontSize = 14, wordWrap = true };
         var verdictStyle = new GUIStyle(GUI.skin.label) { richText = true, fontSize = fail ? 26 : 18, fontStyle = FontStyle.Bold, wordWrap = true };
 
