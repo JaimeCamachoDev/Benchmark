@@ -123,3 +123,29 @@ totalmente independiente, en `Assets/PerfLab/`. No toca ni depende de `ShaderBen
 5. Si entra en el cap: panel verde, "✔ DENTRO DEL PRESUPUESTO". Si no entra: panel y overlay se ponen **en rojo grande**, "✖ NO VÁLIDO — FUERA DE PRESUPUESTO", imposible de pasar por alto.
 6. Sin CSV ni Sheets — es una herramienta de comprobación rápida, no de archivo histórico (para eso está `ShaderBench`).
 
+### Por qué a veces el número "baila" (sube al azar y vuelve a 0)
+
+El coste de un solo elemento suelto puede ser más pequeño que el propio "ruido" normal de
+frame a frame (GC, drivers, otras ventanas del Editor...). Si ese ruido es mayor que el
+elemento, restar línea base menos medición da un número que salta. Para minimizarlo:
+
+- **VSync**: con VSync activado el frame se redondea a múltiplos del refresco (16.6 ms a
+  60 Hz, 13.9 ms a 72 Hz...), así que un coste pequeño no se nota hasta que empuja el frame
+  a pasarse de ese múltiplo entero — de ahí las lecturas "en escalón" (0 y luego un salto
+  grande). Por eso `PerfLabAnalyzer` fuerza **VSync OFF y fps sin límite** mientras mide
+  (`Force Uncapped Framerate`, activado por defecto) y lo restaura al salir de Play.
+- **Media recortada**: en vez de una media normal, se descarta el 15% de muestras más altas
+  y más bajas antes de promediar, tanto en la línea base como en la ventana en vivo. Así un
+  pico puntual de GC no contamina el resultado, pero si el elemento realmente sube el coste
+  de forma sostenida, sí se refleja.
+- **Ventanas más largas**: por defecto la línea base mide 3 s y la ventana en vivo 2.5 s
+  (antes eran más cortas). Cuanto más grande el elemento, antes se estabiliza el número;
+  para efectos muy baratos puede convenir alargar aún más `Baseline Seconds`.
+- **El Editor mete ruido que un build no tiene**: overhead del propio Editor, la ventana
+  Scene renderizando en paralelo si está visible, Live reload, etc. Para el número
+  definitivo (el que decide si algo entra o no en el presupuesto real), valida siempre en
+  una **build de desarrollo en el propio Quest 3/Pico 4**, no solo en el Editor.
+- Si un elemento es tan barato que ni con esto se estabiliza, probablemente su coste real
+  esté por debajo del ruido de medición — es decir, es prácticamente gratis comparado con el
+  presupuesto del departamento, lo cual también es una respuesta válida.
+
