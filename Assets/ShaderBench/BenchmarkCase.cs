@@ -1,5 +1,6 @@
 // Assets/ShaderBench/BenchmarkCase.cs
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -38,6 +39,24 @@ public class BenchmarkCase : ScriptableObject
     [TextArea] public string enabledKeywords = "";
     [Tooltip("Keywords a deshabilitar en el material.")]
     [TextArea] public string disabledKeywords = "";
+
+    [Header("Barrido de densidad (opcional)")]
+    [Tooltip("Si tiene valores, el runner repite este caso una vez por cada nº de instancias de la lista, en vez de un único gridX×gridY fijo. Sirve para calcular el coste por instancia (ms/instancia) por regresión en la hoja de cálculo. Si se deja vacío, se usa gridX×gridY como hasta ahora.")]
+    public List<int> densitySweep = new List<int>();
+
+    [Header("Modo \"llenar viewport\" (fuerza que la GPU sea el cuello de botella)")]
+    [Tooltip("En vez de espaciar el grid libremente, coloca las instancias como un mosaico que cubre todo el campo de visión de la cámara a una distancia fija. Así el nº de píxeles sombreados es siempre ~el mismo (toda la pantalla) sea cual sea el nº de instancias, aislando el coste de shader/textura por píxel. Pensado para prefabs simples tipo Quad/Plane con el material a comparar, no para mallas complejas.")]
+    public bool fillViewport = false;
+    [Tooltip("Distancia (metros) a la que se coloca el mosaico frente a la cámara en modo \"llenar viewport\".")]
+    [Min(0.1f)] public float fillDistance = 5f;
+
+    [Header("Metadatos de eficiencia de material (opcionales)")]
+    [Tooltip("Nº de texture samples que hace el shader para este material (contados a mano por vosotros, p.ej. con Frame Debugger o leyendo el shader). Solo informativo, viaja a la hoja de cálculo.")]
+    public int textureSamplesPerInstance = 0;
+    [Tooltip("Etiqueta libre del esquema de packing usado, p.ej. \"URP Lit estándar (M/AO/S)\", \"NOS 1-sample custom\", \"Separado (4 texturas)\".")]
+    public string packingScheme = "";
+    [Tooltip("Notas libres: qué mapas están activos/inactivos, opaco/cutout/blend, etc.")]
+    [TextArea] public string variantNotes = "";
 
     /// <summary>
     /// Aplica material, keywords y flags de sombras/instancing a un renderer concreto.

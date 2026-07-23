@@ -72,6 +72,9 @@ public class BenchmarkRunner : MonoBehaviour
     [Tooltip("FPS objetivo para análisis en Sheets (finalize)")]
     public int targetFPS = 72;
 
+    [Tooltip("Además del resumen normal, pide a Sheets que calcule el coste por instancia (ms/instancia, por regresión sobre el barrido de densidad) y lo guarde en <hoja>_MaterialEfficiency + en un histórico acumulado. Pensado para el caso de uso 'qué material/packing es más eficiente'.")]
+    public bool computeMaterialEfficiencySummary = false;
+
     // Internos
     private string _currentSheetName;
 
@@ -126,6 +129,10 @@ public class BenchmarkRunner : MonoBehaviour
         public string Bottleneck;
         public string Quest3Rating;
         public string Summary;
+
+        public string PackingScheme;
+        public int TextureSamples;
+        public string VariantNotes;
     }
 
     [Serializable]
@@ -223,42 +230,65 @@ public class BenchmarkRunner : MonoBehaviour
             CurrentCaseName = string.IsNullOrEmpty(c.caseName) ? $"Case_{i + 1}" : c.caseName;
             CurrentDepartment = c.department.ToString();
 
-            for (int rep = 1; rep <= repetitions; rep++)
+            // Sin barrido de densidad: comportamiento idéntico al de siempre (gridX×gridY
+            // exactos del caso). Con barrido: se repite el caso una vez por cada nº de
+            // instancias de la lista, aproximado a un grid cuadrado, para poder calcular
+            // el coste por instancia (ms/instancia) por regresión en la hoja de cálculo.
+            var densityPairs = new List<(int gridX, int gridY)>();
+            if (c.densitySweep != null && c.densitySweep.Count > 0)
             {
-                CurrentRepetition = rep;
-
-                // Construye y encuadra
-                BuildCase(c);
-                AutoFrameCameraForCase(c);
-
-                // Warmup
-                yield return Phase("Warmup", Mathf.Max(0f, warmupSeconds), collectSamples: false);
-
-                // Measuring
-                _samplesCPU.Clear();
-                _samplesGPU.Clear();
-                yield return Phase("Measuring", Mathf.Max(0.01f, measureSeconds), collectSamples: true);
-
-                // Resultados
-                var res = ComputeStats(_samplesCPU, _samplesGPU);
-
-                // CSV local
-                AppendCSV(csvPath, c, rep, res);
-
-                // Subida a Google Sheets (fila)
-                if (uploadToGoogleSheets)
+                foreach (int density in c.densitySweep)
                 {
-                    var row = BuildSheetRow(c, rep, res);
-                    EnqueueRow(row);
-
-                    if (uploadEachRow && _pendingRows.Count >= 1)
-                        yield return UploadPendingRowsCoroutine(); // sube inmediatamente
-                    else if (_pendingRows.Count >= uploadBatchSize)
-                        yield return UploadPendingRowsCoroutine(); // batch parcial
+                    int gx = Mathf.Max(1, Mathf.CeilToInt(Mathf.Sqrt(Mathf.Max(1, density))));
+                    int gy = Mathf.Max(1, Mathf.CeilToInt((float)Mathf.Max(1, density) / gx));
+                    densityPairs.Add((gx, gy));
                 }
+            }
+            else
+            {
+                densityPairs.Add((c.gridX, c.gridY));
+            }
 
-                ClearSpawned();
-                yield return null; // margen 1 frame
+            foreach (var (workingGridX, workingGridY) in densityPairs)
+            {
+                for (int rep = 1; rep <= repetitions; rep++)
+                {
+                    CurrentRepetition = rep;
+
+                    // Construye y encuadra (en modo "llenar viewport" la cámara no se
+                    // reencuadra: la composición ya está fijada respecto a ella).
+                    BuildCase(c, workingGridX, workingGridY);
+                    if (!c.fillViewport) AutoFrameCameraForCase(c);
+
+                    // Warmup
+                    yield return Phase("Warmup", Mathf.Max(0f, warmupSeconds), collectSamples: false);
+
+                    // Measuring
+                    _samplesCPU.Clear();
+                    _samplesGPU.Clear();
+                    yield return Phase("Measuring", Mathf.Max(0.01f, measureSeconds), collectSamples: true);
+
+                    // Resultados
+                    var res = ComputeStats(_samplesCPU, _samplesGPU);
+
+                    // CSV local
+                    AppendCSV(csvPath, c, workingGridX, workingGridY, rep, res);
+
+                    // Subida a Google Sheets (fila)
+                    if (uploadToGoogleSheets)
+                    {
+                        var row = BuildSheetRow(c, workingGridX, workingGridY, rep, res);
+                        EnqueueRow(row);
+
+                        if (uploadEachRow && _pendingRows.Count >= 1)
+                            yield return UploadPendingRowsCoroutine(); // sube inmediatamente
+                        else if (_pendingRows.Count >= uploadBatchSize)
+                            yield return UploadPendingRowsCoroutine(); // batch parcial
+                    }
+
+                    ClearSpawned();
+                    yield return null; // margen 1 frame
+                }
             }
         }
 
@@ -271,6 +301,10 @@ public class BenchmarkRunner : MonoBehaviour
         // --- Dispara el análisis/Resumen en la hoja (crea *_Summary) ---
         if (uploadToGoogleSheets && !string.IsNullOrEmpty(googleScriptUrl))
             yield return FinalizeRunCoroutine();
+
+        // --- Análisis de eficiencia por instancia (crea *_MaterialEfficiency + histórico) ---
+        if (uploadToGoogleSheets && computeMaterialEfficiencySummary && !string.IsNullOrEmpty(googleScriptUrl))
+            yield return FinalizeMaterialEfficiencyCoroutine();
 
         IsRunning = false;
         HasFinished = true;
@@ -295,7 +329,8 @@ public class BenchmarkRunner : MonoBehaviour
                 "GPU_ms_avg", "GPU_ms_p95", "GPU_ms_min", "GPU_ms_max",
                 "FPS_avg", "FPS_p95", "FPS_min", "FPS_max",
                 "UnityVersion", "RenderPipeline", "GraphicsAPI", "DeviceModel", "OS",
-                "Bottleneck", "Quest3Rating", "Summary"));
+                "Bottleneck", "Quest3Rating", "Summary",
+                "PackingScheme", "TextureSamples", "VariantNotes"));
         }
         catch (Exception e)
         {
@@ -303,7 +338,7 @@ public class BenchmarkRunner : MonoBehaviour
         }
     }
 
-    void AppendCSV(string path, BenchmarkCase c, int repetition, Stats s)
+    void AppendCSV(string path, BenchmarkCase c, int gridX, int gridY, int repetition, Stats s)
     {
         try
         {
@@ -315,7 +350,7 @@ public class BenchmarkRunner : MonoBehaviour
 
             w.WriteLine(string.Join(",",
                 Escape(timestamp), Escape(CurrentCaseName), Escape(c.department.ToString()), repetition,
-                c.gridX, c.gridY, c.gridX * c.gridY,
+                gridX, gridY, gridX * gridY,
                 c.spacing.ToString(CultureInfo.InvariantCulture),
                 c.enableGPUInstancing,
                 c.shadowCasting != ShadowCastingMode.Off,
@@ -345,7 +380,11 @@ public class BenchmarkRunner : MonoBehaviour
                 Escape(SystemInfo.operatingSystem),
                 Escape(bottleneck),
                 Escape(rating),
-                Escape(summary)));
+                Escape(summary),
+
+                Escape(c.packingScheme),
+                c.textureSamplesPerInstance,
+                Escape(c.variantNotes)));
         }
         catch (Exception e)
         {
@@ -416,7 +455,7 @@ public class BenchmarkRunner : MonoBehaviour
     }
 
 
-    void BuildCase(BenchmarkCase c)
+    void BuildCase(BenchmarkCase c, int gridX, int gridY)
     {
         ClearSpawned();
 
@@ -432,11 +471,17 @@ public class BenchmarkRunner : MonoBehaviour
             c.prefab = cube;
         }
 
-        float offX = (c.gridX - 1) * c.spacing * 0.5f;
-        float offY = (c.gridY - 1) * c.spacing * 0.5f;
+        if (c.fillViewport)
+        {
+            BuildCaseFillViewport(c, gridX, gridY);
+            return;
+        }
 
-        for (int y = 0; y < c.gridY; y++)
-            for (int x = 0; x < c.gridX; x++)
+        float offX = (gridX - 1) * c.spacing * 0.5f;
+        float offY = (gridY - 1) * c.spacing * 0.5f;
+
+        for (int y = 0; y < gridY; y++)
+            for (int x = 0; x < gridX; x++)
             {
                 var go = Instantiate(c.prefab, _root);
                 go.transform.position = new Vector3(x * c.spacing - offX, 0f, y * c.spacing - offY);
@@ -447,6 +492,47 @@ public class BenchmarkRunner : MonoBehaviour
 
                 _spawned.Add(go);
             }
+    }
+
+    // Coloca gridX*gridY instancias como un mosaico que cubre TODO el viewport de la
+    // cámara a una distancia fija, en vez de esparcirlas por el espacio. Así el nº de
+    // píxeles sombreados es siempre ~el mismo (toda la pantalla) sea cual sea gridX*gridY,
+    // aislando el coste de shader/textura por píxel del material bajo prueba.
+    // Pensado para prefabs simples tipo Quad/Plane, no para mallas complejas.
+    void BuildCaseFillViewport(BenchmarkCase c, int gridX, int gridY)
+    {
+        if (_cam == null) _cam = Camera.main;
+        if (_cam == null) return;
+
+        float distance = Mathf.Max(0.1f, c.fillDistance);
+        float viewHeight = 2f * distance * Mathf.Tan(_cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
+        float viewWidth = viewHeight * _cam.aspect;
+
+        float tileW = viewWidth / gridX;
+        float tileH = viewHeight / gridY;
+
+        Vector3 origin = _cam.transform.position + _cam.transform.forward * distance;
+        Vector3 right = _cam.transform.right;
+        Vector3 up = _cam.transform.up;
+
+        for (int y = 0; y < gridY; y++)
+        {
+            for (int x = 0; x < gridX; x++)
+            {
+                var go = Instantiate(c.prefab, _root);
+                float offX = (x + 0.5f - gridX * 0.5f) * tileW;
+                float offY = (y + 0.5f - gridY * 0.5f) * tileH;
+                go.transform.position = origin + right * offX + up * offY;
+                go.transform.rotation = Quaternion.LookRotation(_cam.transform.forward, _cam.transform.up);
+                go.transform.localScale = new Vector3(tileW, tileH, Mathf.Min(tileW, tileH));
+
+                var renderers = go.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in renderers)
+                    c.ApplyToRenderer(r);
+
+                _spawned.Add(go);
+            }
+        }
     }
 
     void ClearSpawned()
@@ -620,7 +706,7 @@ public class BenchmarkRunner : MonoBehaviour
     }
 
     // =================== Google Sheets: helpers ===================
-    private SheetRow BuildSheetRow(BenchmarkCase c, int rep, Stats s)
+    private SheetRow BuildSheetRow(BenchmarkCase c, int gridX, int gridY, int rep, Stats s)
     {
         AnalyzeStats(s, out string bottleneck, out string rating, out string summary);
 
@@ -630,9 +716,9 @@ public class BenchmarkRunner : MonoBehaviour
             CaseName = CurrentCaseName,
             Department = c.department.ToString(),
             Repetition = rep,
-            GridX = c.gridX,
-            GridY = c.gridY,
-            Count = c.gridX * c.gridY,
+            GridX = gridX,
+            GridY = gridY,
+            Count = gridX * gridY,
             Spacing = c.spacing.ToString(CultureInfo.InvariantCulture),
             GPUInstancing = c.enableGPUInstancing,
             Shadows = c.shadowCasting != ShadowCastingMode.Off,
@@ -660,7 +746,11 @@ public class BenchmarkRunner : MonoBehaviour
             OS = SystemInfo.operatingSystem,
             Bottleneck = bottleneck,
             Quest3Rating = rating,
-            Summary = summary
+            Summary = summary,
+
+            PackingScheme = c.packingScheme,
+            TextureSamples = c.textureSamplesPerInstance,
+            VariantNotes = c.variantNotes
         };
     }
 
@@ -840,6 +930,45 @@ public class BenchmarkRunner : MonoBehaviour
                 LastUploadStatus = $"Sheets finalize ERROR {req.responseCode}: {req.error}";
                 _lastUploadStatusTime = Time.realtimeSinceStartup;
                 Debug.LogWarning($"[ShaderBench] Finalize failed: {req.responseCode} - {req.error}\n{req.downloadHandler?.text}");
+            }
+        }
+    }
+
+    IEnumerator FinalizeMaterialEfficiencyCoroutine()
+    {
+        var payload = new SheetPayload
+        {
+            token = googleScriptToken,
+            sheetName = _currentSheetName,
+            action = "finalizeEfficiency",
+            targetFps = targetFPS
+        };
+        string json = JsonUtility.ToJson(payload);
+
+        using (var req = new UnityWebRequest(googleScriptUrl, UnityWebRequest.kHttpVerbPOST))
+        {
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+            req.uploadHandler = new UploadHandlerRaw(bodyRaw);
+            req.downloadHandler = new DownloadHandlerBuffer();
+            req.SetRequestHeader("Content-Type", "application/json");
+
+            yield return req.SendWebRequest();
+
+#if UNITY_2020_2_OR_NEWER
+            bool ok = req.result == UnityWebRequest.Result.Success;
+#else
+        bool ok = !req.isHttpError && !req.isNetworkError;
+#endif
+            if (ok && req.responseCode >= 200 && req.responseCode < 300)
+            {
+                LastUploadStatus = $"Sheets MaterialEfficiency OK: {_currentSheetName}";
+                _lastUploadStatusTime = Time.realtimeSinceStartup;
+            }
+            else
+            {
+                LastUploadStatus = $"Sheets MaterialEfficiency ERROR {req.responseCode}: {req.error}";
+                _lastUploadStatusTime = Time.realtimeSinceStartup;
+                Debug.LogWarning($"[ShaderBench] MaterialEfficiency finalize failed: {req.responseCode} - {req.error}\n{req.downloadHandler?.text}");
             }
         }
     }
