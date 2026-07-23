@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 77cace524a945e54c90a00f48f3176db, type: 3}
+  m_Name: Modeling_CamionOriginal
+  m_EditorClassIdentifier: 
+  caseName: Modeling - Low Poly Baseline (Cube)
+  department: 1
+  prefab: {fileID: 3803005659200452112, guid: 9764aa19f31c94b44b3325ad3228d074, type: 3}
+  gridX: 30
+  gridY: 30
+  spacing: 1.5
+  overrideMaterial: 0
+  material: {fileID: -876546973899608171, guid: fae32442e0c50214f8ababfe85764fa7, type: 3}
+  enableGPUInstancing: 1
+  shadowCasting: 1
+  receiveShadows: 1
+  enabledKeywords: 
+  disabledKeywords: 
