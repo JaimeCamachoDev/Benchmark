@@ -22,6 +22,7 @@ Shader "Custom/EfficientLit"
         [MainTexture] _BaseMap("Base Map (RGB=Albedo, A=Smoothness)", 2D) = "white" {}
         [MainColor] _BaseColor("Base Color (tinte)", Color) = (1,1,1,1)
         _DataMap("Data Map (R=NormalX G=NormalY B=AO A=Metallic) - importar como Default/Lineal", 2D) = "bump" {}
+        [Toggle] _FlipGreen("Flip Green (Y) - activa esto si el relieve se ve invertido respecto a Lit/SimpleLit", Float) = 0
         _NormalStrength("Normal Strength", Range(0,2)) = 1.0
         _SmoothnessScale("Smoothness Scale", Range(0,1)) = 1.0
         _MetallicScale("Metallic Scale", Range(0,1)) = 1.0
@@ -74,6 +75,7 @@ Shader "Custom/EfficientLit"
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
                 float4 _BaseColor;
+                float _FlipGreen;
                 float _NormalStrength;
                 float _SmoothnessScale;
                 float _MetallicScale;
@@ -146,7 +148,13 @@ Shader "Custom/EfficientLit"
                 half occlusion = lerp(1.0h, dataSample.b, (half)_OcclusionStrength);
 
                 // Reconstruye Z de la normal a partir de X/Y (sin almacenarla).
-                half2 normalXY = (dataSample.rg * 2.0h - 1.0h) * (half)_NormalStrength;
+                // _FlipGreen: por defecto _DataMap se importa como Default/Lineal, SIN pasar
+                // por el importador "Normal Map" de Unity (ese importador es el que aplica el
+                // convenio de Y/Flip Green automaticamente para los normal maps de Lit/SimpleLit).
+                // Si el relieve sale invertido (concavo donde deberia ser convexo) respecto a
+                // esos shaders, activa este toggle en vez de re-exportar la textura.
+                half greenSign = _FlipGreen > 0.5h ? -1.0h : 1.0h;
+                half2 normalXY = half2(dataSample.r * 2.0h - 1.0h, (dataSample.g * 2.0h - 1.0h) * greenSign) * (half)_NormalStrength;
                 half normalZ = sqrt(saturate(1.0h - dot(normalXY, normalXY)));
                 half3 normalTS = half3(normalXY, normalZ);
 
