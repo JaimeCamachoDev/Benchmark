@@ -89,6 +89,57 @@ Cada fila subida a la hoja de cálculo incluye ahora el **Departamento** además
 Esto permite filtrar/pivotar la hoja por departamento para ver de un vistazo si algún área
 concreta está gastando más de su 25% del presupuesto.
 
+### Test de eficiencia de material/shader (packing, VFX, etc.)
+
+Para responder "¿qué material/packing es el más eficiente para usar como estándar en VR?"
+un único número a una densidad fija no basta (ver por qué en el apartado de metodología
+más abajo). `BenchmarkCase`/`BenchmarkRunner` tienen 3 añadidos pensados exactamente para
+este caso, sin afectar a los casos ya existentes (todo es opt-in):
+
+- **`densitySweep`** (lista de enteros, p. ej. `[10, 50, 100, 300]`): en vez de un único
+  `gridX`×`gridY` fijo, el caso se repite una vez por cada nº de instancias de la lista. Deja
+  vacío este campo para el comportamiento de siempre (un único grid fijo).
+- **`fillViewport`**: en vez de esparcir el grid libremente, coloca las instancias como un
+  mosaico que cubre TODO el campo de visión de la cámara a `fillDistance` metros. Así el nº
+  de píxeles sombreados es siempre el mismo (toda la pantalla) sea cual sea el nº de
+  instancias, forzando que la GPU/el shader sean el cuello de botella real y aislando el
+  coste por píxel del material. Pensado para prefabs simples (Quad/Plane) con el material a
+  comparar, no para mallas complejas.
+- **`packingScheme` / `textureSamplesPerInstance` / `variantNotes`**: metadatos libres para
+  documentar qué estás comparando exactamente (p. ej. `"URP Lit estándar (M/AO/S)"` vs
+  `"NOS 1-sample custom"`), que viajan también al CSV/Sheets.
+
+Para usarlo: crea un `BenchmarkCase` por cada variante de material/packing que quieras
+comparar (mismo prefab base, mismo `fillViewport` + `fillDistance`, solo cambia el material),
+rellena `densitySweep` con al menos 2-3 valores, y en el `BenchmarkRunner` activa
+**`Compute Material Efficiency Summary`**. Al terminar la ejecución, además del resumen
+habitual, se pide a Sheets que calcule el **coste por instancia** (ms/instancia, por
+regresión lineal sobre el barrido de densidad) — esa pendiente, no el número absoluto a una
+densidad arbitraria, es la que realmente predice cómo escalará cada material en una escena
+real con cientos de objetos.
+
+En Sheets esto crea una pestaña `<hoja>_MaterialEfficiency` con CPU/GPU ms-por-instancia y
+coste fijo por caso, ordenada de más a menos eficiente, con gráficos — y añade además una
+fila por caso a una hoja persistente **`MaterialEfficiency_History`** que nunca se borra,
+para poder comparar entre sesiones de test a lo largo del tiempo.
+
+El Apps Script que procesa esto está versionado en `Tools/AppsScript/ShaderBenchWebApp.gs`.
+Si lo cambias, cópialo también al editor de Apps Script de la hoja (Extensions > Apps
+Script) y vuelve a desplegarlo (Deploy > Manage deployments > Edit > **New version**) para
+que el cambio llegue a la URL que ya usa Unity. Esta versión también añade `Department` a
+las cabeceras que Sheets reconoce — sin este cambio, la columna Department que ya subía
+Unity se estaba descartando silenciosamente en el lado de Sheets.
+
+#### Por qué un único número no basta para esta decisión
+
+Si comparáis materiales/shaders con un solo grid a una sola densidad, es fácil que el
+resultado sea "todos parecidos" sin que eso signifique que lo sean de verdad: si el test
+está limitado por CPU (compara `CPU_ms_avg` y `GPU_ms_avg`: si CPU domina, la GPU nunca tuvo
+ocasión de mostrar diferencias de coste de shader) o si la cobertura de píxeles es baja, el
+coste real del shader/packing queda enmascarado por el propio overhead del test. `fillViewport`
++ `densitySweep` + mirar CPU/GPU por separado (no solo el "Bound") existen para atajar
+justo ese problema.
+
 ### Herramientas complementarias en dispositivo real
 
 `BenchmarkRunner` mide dentro del Editor/Player vía `FrameTimingManager`, pero para validar
