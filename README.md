@@ -130,6 +130,51 @@ que el cambio llegue a la URL que ya usa Unity. Esta versión también añade `D
 las cabeceras que Sheets reconoce — sin este cambio, la columna Department que ya subía
 Unity se estaba descartando silenciosamente en el lado de Sheets.
 
+### EfficientLit: material estándar candidato (2 texturas, mismo aspecto que Lit)
+
+`Assets/2-Art/2-VFX/EfficientLit/EfficientLit.shader` es una implementación concreta de la
+recomendación de packing: mismo aspecto PBR metálico que URP Lit, pero con **2 texture
+samples fijos** (garantizados por código) en vez de los 3-4 de Lit.
+
+- **`_BaseMap`**: RGB = Albedo, A = Smoothness.
+- **`_DataMap`**: R = Normal.X, G = Normal.Y, B = AO, A = Metallic. La Z de la normal se
+  reconstruye en el shader (`z = sqrt(saturate(1 - dot(xy,xy)))`), no se almacena.
+  **Importante**: `_DataMap` debe importarse como textura **Default/Lineal**, nunca como
+  "Normal Map" (ese importador reformatea los canales y rompe este packing).
+
+El menú `JaimeCamachoDev/ShaderBench/Create EfficientLit vs Lit Comparison` crea de golpe
+dos `BenchmarkCase` listos para comparar (un Quad con `EfficientLit`, otro con `Lit` de
+referencia, ambos en modo `fillViewport` + `densitySweep`): añádelos a un `BenchmarkRunner`,
+activa `Compute Material Efficiency Summary` y dale a Play para ver la diferencia real de
+GPU ms/instancia en `_MaterialEfficiency`.
+
+**Aviso honesto**: este shader está escrito a mano (HLSL/ShaderLab) usando las APIs de
+iluminación de URP más estables (`SurfaceData`/`InputData`/`UniversalFragmentPBR`,
+reutilizando los passes ShadowCaster/DepthOnly/DepthNormals/Meta del propio Lit vía
+`UsePass`), pero no ha podido compilarse ni probarse en un Editor real antes de este commit.
+Ábrelo en Unity y confirma que compila sin errores antes de usarlo en producción; si algo
+falla, lo más probable es un desajuste puntual de campos de `SurfaceData`/`InputData` con
+vuestra versión exacta de URP (17.0.4), fácil de corregir mirando el error de consola.
+
+#### Alternativa sin riesgo: construirlo en Shader Graph a mano (~10 min)
+
+Si preferís tenerlo en Shader Graph (más accesible para el equipo artístico, y sin ningún
+riesgo de compatibilidad de versión porque Shader Graph genera el HLSL correcto para vuestra
+versión de URP automáticamente):
+
+1. `Create > Shader Graph > URP > Lit Shader Graph`. En el Graph Inspector: **Workflow =
+   Metallic**, **Surface = Opaque**.
+2. Añade 2 propiedades `Texture2D`: `_BaseMap` (default blanco) y `_DataMap` (default
+   `bump`/neutro, y en el asset de la textura real: sin sRGB).
+3. Nodo `Sample Texture 2D` para `_BaseMap` → `Split`: RGB a **Albedo**, A a **Smoothness**.
+4. Nodo `Sample Texture 2D` para `_DataMap` (Type = Default, no "Normal") → `Split` en 4:
+   R y G a un nodo `Combine`/`Vector 2` (normal XY), B a **Occlusion**, A a **Metallic**.
+5. Reconstruir Z: `Dot Product` (XY, XY) → `One Minus` → `Saturate` → `Square Root` = Z.
+   `Combine` (X, Y, Z) → conecta directo al puerto **Normal (Tangent Space)** del Master
+   Stack (sin nodo "Normal Unpack", esa normal ya está en espacio tangente sin comprimir).
+6. Guarda, crea un Material a partir del graph, asigna `_BaseMap`/`_DataMap` y compáralo con
+   el mismo `BenchmarkCase` de arriba (cambia el material del caso "EfficientLit" por este).
+
 #### Por qué un único número no basta para esta decisión
 
 Si comparáis materiales/shaders con un solo grid a una sola densidad, es fácil que el

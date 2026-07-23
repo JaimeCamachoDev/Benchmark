@@ -1,5 +1,6 @@
 // Assets/ShaderBench/Editor/BenchmarkCasePresets.cs
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -125,6 +126,76 @@ public static class BenchmarkCasePresets
         AssetDatabase.SaveAssets();
         Selection.activeObject = lowPolyCase;
         Debug.Log("[ShaderBench] Modeling example case(s) created.");
+    }
+
+    [MenuItem("JaimeCamachoDev/ShaderBench/Create EfficientLit vs Lit Comparison")]
+    public static void CreateEfficientLitComparison()
+    {
+        string folder = GetSelectedPathOrFallback();
+
+        // Quad compartido: en modo fillViewport actua como "1 unidad de pantalla
+        // shadeada" con el material bajo prueba, para aislar el coste por pixel.
+        var quadObj = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        quadObj.name = "EfficientLitBench_Quad";
+        var quadPrefab = PrefabUtility.SaveAsPrefabAsset(quadObj, "Assets/2-Art/2-VFX/EfficientLit/EfficientLitBench_Quad.prefab");
+        Object.DestroyImmediate(quadObj);
+
+        var litShader = Shader.Find("Universal Render Pipeline/Lit");
+        var efficientShader = Shader.Find("Custom/EfficientLit");
+
+        if (litShader == null || efficientShader == null)
+        {
+            Debug.LogError("[ShaderBench] No se encontró el shader 'Universal Render Pipeline/Lit' o 'Custom/EfficientLit'. ¿Está el proyecto en URP y compila EfficientLit.shader?");
+            return;
+        }
+
+        var litMat = new Material(litShader) { name = "EfficientLitBench_LitReference" };
+        AssetDatabase.CreateAsset(litMat, "Assets/2-Art/2-VFX/EfficientLit/EfficientLitBench_LitReference.mat");
+
+        var efficientMat = new Material(efficientShader) { name = "EfficientLitBench_EfficientLit" };
+        AssetDatabase.CreateAsset(efficientMat, "Assets/2-Art/2-VFX/EfficientLit/EfficientLitBench_EfficientLit.mat");
+
+        var densities = new List<int> { 1, 25, 100 };
+
+        var litCase = ScriptableObject.CreateInstance<BenchmarkCase>();
+        litCase.name = "EfficientLitBench_Lit";
+        litCase.caseName = "MaterialEfficiency - URP Lit (referencia)";
+        litCase.department = PerfDepartment.VFX;
+        litCase.prefab = quadPrefab;
+        litCase.overrideMaterial = true;
+        litCase.material = litMat;
+        litCase.enableGPUInstancing = true;
+        litCase.shadowCasting = ShadowCastingMode.On;
+        litCase.receiveShadows = true;
+        litCase.fillViewport = true;
+        litCase.fillDistance = 5f;
+        litCase.densitySweep = new List<int>(densities);
+        litCase.packingScheme = "URP Lit estándar (BaseMap + Metallic/Smoothness + Occlusion + Normal)";
+        litCase.textureSamplesPerInstance = 4;
+        litCase.variantNotes = "Referencia sin texturas asignadas (usa los defaults de Lit); asigna las mismas texturas de contenido real en ambos materiales antes de comparar visualmente.";
+        AssetDatabase.CreateAsset(litCase, $"{folder}/EfficientLitBench_Lit.asset");
+
+        var efficientCase = ScriptableObject.CreateInstance<BenchmarkCase>();
+        efficientCase.name = "EfficientLitBench_EfficientLit";
+        efficientCase.caseName = "MaterialEfficiency - EfficientLit (2 texturas)";
+        efficientCase.department = PerfDepartment.VFX;
+        efficientCase.prefab = quadPrefab;
+        efficientCase.overrideMaterial = true;
+        efficientCase.material = efficientMat;
+        efficientCase.enableGPUInstancing = true;
+        efficientCase.shadowCasting = ShadowCastingMode.On;
+        efficientCase.receiveShadows = true;
+        efficientCase.fillViewport = true;
+        efficientCase.fillDistance = 5f;
+        efficientCase.densitySweep = new List<int>(densities);
+        efficientCase.packingScheme = "EfficientLit custom (BaseMap RGB+A + DataMap RG normal/B AO/A metallic)";
+        efficientCase.textureSamplesPerInstance = 2;
+        efficientCase.variantNotes = "DataMap debe importarse como Default/Lineal, no como Normal Map.";
+        AssetDatabase.CreateAsset(efficientCase, $"{folder}/EfficientLitBench_EfficientLit.asset");
+
+        AssetDatabase.SaveAssets();
+        Selection.activeObject = efficientCase;
+        Debug.Log("[ShaderBench] Casos de comparación EfficientLit vs Lit creados. Añádelos a un BenchmarkRunner, activa 'Compute Material Efficiency Summary' y dale a Play.");
     }
 
     static string GetSelectedPathOrFallback()
