@@ -156,6 +156,27 @@ reutilizando los passes ShadowCaster/DepthOnly/DepthNormals/Meta del propio Lit 
 falla, lo más probable es un desajuste puntual de campos de `SurfaceData`/`InputData` con
 vuestra versión exacta de URP (17.0.4), fácil de corregir mirando el error de consola.
 
+#### Si el relieve se ve raro o invertido respecto a Lit/SimpleLit
+
+`_DataMap` se importa deliberadamente como **Default/Lineal**, no como "Normal Map" — por
+eso se salta el convenio de orientación de Y que Unity aplica automáticamente al importar
+una textura *como* Normal Map (de ahí la casilla "Flip Green Channel" de ese importador).
+Si empaquetasteis el canal G a partir de una fuente pensada para ese flujo estándar, el
+relieve puede salir invertido (cóncavo donde debería ser convexo) solo en este shader,
+mientras que Lit/SimpleLit/CustomLightingPBR —que sí leen su normal map a través del
+importador estándar— se ven bien. Antes de re-exportar texturas, prueba el toggle
+**`Flip Green (Y)`** del material: si al activarlo el relieve pasa a coincidir con el de
+Lit, ya tenéis confirmado que era justo esto.
+
+Otras dos comprobaciones rápidas si el material sigue sin verse bien:
+- `_DataMap` con **sRGB desactivado** en su Texture Import Settings (Color Space: Linear).
+- `cobblestones_mohs` (o el paquete de máscaras que uséis) casi seguro **no lleva un normal
+  map real** — MOHS = Metallic/Occlusion/Height/Smoothness, y Height (relieve en escala de
+  grises) no es lo mismo que un normal map (vector XY por píxel). Si no tenéis un normal map
+  dedicado, `_DataMap.rg` necesita salir de esa fuente por separado (o generarse a partir del
+  height con la opción "Create from Grayscale" del importador de Normal Map de Unity), no del
+  canal Height de MOHS directamente.
+
 #### Alternativa sin riesgo: construirlo en Shader Graph a mano (~10 min)
 
 Si preferís tenerlo en Shader Graph (más accesible para el equipo artístico, y sin ningún
