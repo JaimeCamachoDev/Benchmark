@@ -5,11 +5,17 @@
 // vez de los 3-4 de Lit (BaseMap + MetallicGlossMap + OcclusionMap + NormalMap).
 //
 // - _BaseMap: RGB = Albedo, A = Smoothness.
-// - _DataMap: R = Normal.X, G = Normal.Y, B = AO, A = Metallic.
+// - _DataMap: R = Height (escala de grises), G = libre/sin usar, B = AO, A = Metallic.
 //   IMPORTANTE: _DataMap debe importarse como textura "Default" (lineal, sin
-//   sRGB), NUNCA como "Normal Map" - el importador Normal Map reformatea los
-//   canales y rompe este packing custom. La Z de la normal se reconstruye en
-//   el shader a partir de X/Y, no se almacena.
+//   sRGB), NUNCA como "Normal Map".
+//
+//   La normal NO se lee de un normal map pre-horneado (X/Y en RG): se deriva
+//   en el propio shader a partir del canal de Height via ddx/ddy (igual que
+//   el nodo "Normal From Height" de Shader Graph), sin anadir texture samples
+//   extra. Esto es deliberado: si vuestro origen de datos (p.ej. un paquete
+//   MOHS con canal Height) no incluye un normal map real con X/Y ya
+//   calculados, intentar leer ese Height como si fuera X/Y de una normal
+//   produce relieve practicamente aleatorio.
 //
 // Reutiliza los passes ShadowCaster/DepthOnly/DepthNormals/Meta del propio
 // Lit de URP (via UsePass) en vez de reescribirlos: esos passes solo miran
@@ -21,9 +27,9 @@ Shader "Custom/EfficientLit"
     {
         [MainTexture] _BaseMap("Base Map (RGB=Albedo, A=Smoothness)", 2D) = "white" {}
         [MainColor] _BaseColor("Base Color (tinte)", Color) = (1,1,1,1)
-        _DataMap("Data Map (R=NormalX G=NormalY B=AO A=Metallic) - importar como Default/Lineal", 2D) = "bump" {}
-        [Toggle] _FlipGreen("Flip Green (Y) - activa esto si el relieve se ve invertido respecto a Lit/SimpleLit", Float) = 0
-        _NormalStrength("Normal Strength", Range(0,2)) = 1.0
+        _DataMap("Data Map (R=Height G=libre B=AO A=Metallic) - importar como Default/Lineal", 2D) = "grey" {}
+        [Toggle] _InvertHeight("Invert Height - activa esto si el relieve sale al reves (concavo/convexo invertido)", Float) = 0
+        _NormalStrength("Normal Strength (fuerza del relieve derivado del height)", Range(0, 50)) = 8.0
         _SmoothnessScale("Smoothness Scale", Range(0,1)) = 1.0
         _MetallicScale("Metallic Scale", Range(0,1)) = 1.0
         _OcclusionStrength("Occlusion Strength", Range(0,1)) = 1.0
@@ -75,7 +81,7 @@ Shader "Custom/EfficientLit"
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
                 float4 _BaseColor;
-                float _FlipGreen;
+                float _InvertHeight;
                 float _NormalStrength;
                 float _SmoothnessScale;
                 float _MetallicScale;
@@ -147,16 +153,20 @@ Shader "Custom/EfficientLit"
                 half metallic = dataSample.a * _MetallicScale;
                 half occlusion = lerp(1.0h, dataSample.b, (half)_OcclusionStrength);
 
-                // Reconstruye Z de la normal a partir de X/Y (sin almacenarla).
-                // _FlipGreen: por defecto _DataMap se importa como Default/Lineal, SIN pasar
-                // por el importador "Normal Map" de Unity (ese importador es el que aplica el
-                // convenio de Y/Flip Green automaticamente para los normal maps de Lit/SimpleLit).
-                // Si el relieve sale invertido (concavo donde deberia ser convexo) respecto a
-                // esos shaders, activa este toggle en vez de re-exportar la textura.
-                half greenSign = _FlipGreen > 0.5h ? -1.0h : 1.0h;
-                half2 normalXY = half2(dataSample.r * 2.0h - 1.0h, (dataSample.g * 2.0h - 1.0h) * greenSign) * (half)_NormalStrength;
-                half normalZ = sqrt(saturate(1.0h - dot(normalXY, normalXY)));
-                half3 normalTS = half3(normalXY, normalZ);
+                // Normal derivada del canal de Height (R) via ddx/ddy, NO de un normal map
+                // pre-horneado en X/Y. No anade texture samples extra (ddx/ddy trabajan
+                // sobre el escalar ya muestreado, es coste de ALU, no de ancho de banda),
+                // e imita al nodo "Normal From Height" de Shader Graph: si vuestra fuente
+                // de datos (p.ej. un paquete MOHS) solo tiene un canal de Height real, esto
+                // da un relieve correcto; leer ese Height como si fueran componentes X/Y de
+                // una normal (como hacia la version anterior de este shader) producia
+                // relieve practicamente aleatorio.
+                float height = (float)dataSample.r;
+                if (_InvertHeight > 0.5) height = 1.0 - height;
+
+                float dHdx = ddx(height) * (float)_NormalStrength;
+                float dHdy = ddy(height) * (float)_NormalStrength;
+                half3 normalTS = normalize(half3(-dHdx, -dHdy, 1.0h));
 
                 float sgn = IN.tangentWS.w;
                 float3 bitangentWS = sgn * cross(IN.normalWS.xyz, IN.tangentWS.xyz);

@@ -137,10 +137,17 @@ recomendación de packing: mismo aspecto PBR metálico que URP Lit, pero con **2
 samples fijos** (garantizados por código) en vez de los 3-4 de Lit.
 
 - **`_BaseMap`**: RGB = Albedo, A = Smoothness.
-- **`_DataMap`**: R = Normal.X, G = Normal.Y, B = AO, A = Metallic. La Z de la normal se
-  reconstruye en el shader (`z = sqrt(saturate(1 - dot(xy,xy)))`), no se almacena.
+- **`_DataMap`**: R = Height (escala de grises), G = libre/sin usar, B = AO, A = Metallic.
   **Importante**: `_DataMap` debe importarse como textura **Default/Lineal**, nunca como
-  "Normal Map" (ese importador reformatea los canales y rompe este packing).
+  "Normal Map".
+
+La normal **no** se lee de un normal map pre-horneado en X/Y — se deriva en el propio
+shader a partir del canal de Height vía `ddx`/`ddy` (la misma técnica que el nodo
+**"Normal From Height"** de Shader Graph), sin añadir texture samples extra (es coste de
+ALU, no de ancho de banda). Es deliberado: si vuestro origen de datos (p. ej. un paquete
+MOHS) solo tiene un canal de Height real y no un normal map con X/Y ya calculados, intentar
+leer ese Height como si fueran componentes X/Y de una normal produce relieve prácticamente
+aleatorio — así se detectó este bug la primera vez (ver más abajo).
 
 El menú `JaimeCamachoDev/ShaderBench/Create EfficientLit vs Lit Comparison` crea de golpe
 dos `BenchmarkCase` listos para comparar (un Quad con `EfficientLit`, otro con `Lit` de
@@ -156,26 +163,25 @@ reutilizando los passes ShadowCaster/DepthOnly/DepthNormals/Meta del propio Lit 
 falla, lo más probable es un desajuste puntual de campos de `SurfaceData`/`InputData` con
 vuestra versión exacta de URP (17.0.4), fácil de corregir mirando el error de consola.
 
-#### Si el relieve se ve raro o invertido respecto a Lit/SimpleLit
+#### Historial: por qué la primera versión daba relieve "aleatorio" con tangentes
 
-`_DataMap` se importa deliberadamente como **Default/Lineal**, no como "Normal Map" — por
-eso se salta el convenio de orientación de Y que Unity aplica automáticamente al importar
-una textura *como* Normal Map (de ahí la casilla "Flip Green Channel" de ese importador).
-Si empaquetasteis el canal G a partir de una fuente pensada para ese flujo estándar, el
-relieve puede salir invertido (cóncavo donde debería ser convexo) solo en este shader,
-mientras que Lit/SimpleLit/CustomLightingPBR —que sí leen su normal map a través del
-importador estándar— se ven bien. Antes de re-exportar texturas, prueba el toggle
-**`Flip Green (Y)`** del material: si al activarlo el relieve pasa a coincidir con el de
-Lit, ya tenéis confirmado que era justo esto.
+La primera versión de este shader asumía que `_DataMap.rg` ya eran componentes X/Y de una
+normal pre-horneada, y reconstruía Z (`z = sqrt(saturate(1 - dot(xy,xy)))`). Con contenido
+real tipo MOHS (Metallic/Occlusion/**Height**/Smoothness) eso está mal: Height es un único
+canal en escala de grises, no un par X/Y — leerlo como si fuera X/Y produce un relieve
+prácticamente aleatorio. Esto se detectó comparando con un Shader Graph equivalente hecho a
+mano que sí funcionaba: usaba el nodo **"Normal From Height"** sobre el canal R (Height),
+no una reconstrucción de X/Y. La versión actual del shader ya usa esa misma técnica.
 
-Otras dos comprobaciones rápidas si el material sigue sin verse bien:
-- `_DataMap` con **sRGB desactivado** en su Texture Import Settings (Color Space: Linear).
-- `cobblestones_mohs` (o el paquete de máscaras que uséis) casi seguro **no lleva un normal
-  map real** — MOHS = Metallic/Occlusion/Height/Smoothness, y Height (relieve en escala de
-  grises) no es lo mismo que un normal map (vector XY por píxel). Si no tenéis un normal map
-  dedicado, `_DataMap.rg` necesita salir de esa fuente por separado (o generarse a partir del
-  height con la opción "Create from Grayscale" del importador de Normal Map de Unity), no del
-  canal Height de MOHS directamente.
+Pista relacionada que llevó hasta aquí: desactivar las tangentes del FBX "ocultaba" el
+error — pero no lo arreglaba. Sin tangentes, `bitangentWS` colapsa a cero y el shader cae a
+mostrar solo la normal geométrica lisa (sin relieve), así que cualquier relieve mal
+calculado deja de verse simplemente porque deja de calcularse relieve alguno. Con la versión
+actual, las tangentes del FBX deben estar **activadas** para que el relieve se vea.
+
+Si el relieve sale al revés (cóncavo donde debería ser convexo), prueba el toggle
+**`Invert Height`** del material antes de re-exportar texturas — es la ambigüedad habitual
+de "blanco = alto" vs "blanco = bajo" según la herramienta de origen.
 
 #### Alternativa sin riesgo: construirlo en Shader Graph a mano (~10 min)
 
@@ -185,14 +191,14 @@ versión de URP automáticamente):
 
 1. `Create > Shader Graph > URP > Lit Shader Graph`. En el Graph Inspector: **Workflow =
    Metallic**, **Surface = Opaque**.
-2. Añade 2 propiedades `Texture2D`: `_BaseMap` (default blanco) y `_DataMap` (default
-   `bump`/neutro, y en el asset de la textura real: sin sRGB).
+2. Añade 2 propiedades `Texture2D`: `_BaseMap` (default blanco) y `_DataMap` (default gris
+   neutro, y en el asset de la textura real: sin sRGB, importada como Default).
 3. Nodo `Sample Texture 2D` para `_BaseMap` → `Split`: RGB a **Albedo**, A a **Smoothness**.
 4. Nodo `Sample Texture 2D` para `_DataMap` (Type = Default, no "Normal") → `Split` en 4:
-   R y G a un nodo `Combine`/`Vector 2` (normal XY), B a **Occlusion**, A a **Metallic**.
-5. Reconstruir Z: `Dot Product` (XY, XY) → `One Minus` → `Saturate` → `Square Root` = Z.
-   `Combine` (X, Y, Z) → conecta directo al puerto **Normal (Tangent Space)** del Master
-   Stack (sin nodo "Normal Unpack", esa normal ya está en espacio tangente sin comprimir).
+   R al nodo **`Normal From Height`** (entrada "In"; "Strength" como propiedad ajustable),
+   B a **Occlusion**, A a **Metallic**. El canal G queda libre/sin usar.
+5. `Normal From Height` → conecta su salida directo al puerto **Normal (Tangent Space)**
+   del Master Stack.
 6. Guarda, crea un Material a partir del graph, asigna `_BaseMap`/`_DataMap` y compáralo con
    el mismo `BenchmarkCase` de arriba (cambia el material del caso "EfficientLit" por este).
 
