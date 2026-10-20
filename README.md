@@ -6,31 +6,8 @@
 
 _**Herramienta para medir y comparar el rendimiento, ideal para optimizar proyectos y analizar el coste de diferentes técnicas gráficas.**_
 
-
 </header>
    
-<footer>
-   
-## Después de crear el repositorio desde la plantilla, asegúrate de revisar lo siguiente:
-
-### 📸 Social Preview
-- [ ] Sube una imagen `preview.png` personalizada en `Settings → Social Preview`.
-
-### ⚙️ Repository Features
-Desactiva funciones que no necesitas en `Settings → Features`:
-
-- [ ] Desactivar **Projects**
-- [ ] Desactivar **Wiki**
-- [ ] Desactivar **Packages**
-- [ ] Desactivar **Environments** (Deployments)
-- [ ] Confirmar que **Releases** sigue activado ✅
-
-### 🎨 Personalización visual
-- [ ] Cambiar imagen del banner de portada.
-- [ ] Dejar Topics necesarios.
-
-
-</footer>
 
 ## Sistema de benchmark por departamentos (Programación / Animación / Modelado / VFX)
 
@@ -271,4 +248,3 @@ elemento, restar línea base menos medición da un número que salta. Para minim
 - Si un elemento es tan barato que ni con esto se estabiliza, probablemente su coste real
   esté por debajo del ruido de medición — es decir, es prácticamente gratis comparado con el
   presupuesto del departamento, lo cual también es una respuesta válida.
-
