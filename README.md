@@ -1,7 +1,5 @@
 <header>
 
-![Banner](https://github.com/user-attachments/assets/5b933a56-0ece-452a-99c0-1a641485a6b9)
-
 # **Benchmark**
 
 _**Herramienta para medir y comparar el rendimiento, ideal para optimizar proyectos y analizar el coste de diferentes técnicas gráficas.**_
